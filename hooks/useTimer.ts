@@ -10,68 +10,119 @@ export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
   const [timeLeft, setTimeLeft] = useState(workTime);
   const [isActive, setIsActive] = useState(false);
   const [isResting, setIsResting] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const animationFrameRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const pausedTimeRef = useRef<number>(0);
   
   // Reset timer when workTime or restTime changes
   useEffect(() => {
     if (!isActive) {
-      setTimeLeft(isResting ? restTime : workTime);
+      const newTime = isResting ? restTime : workTime;
+      setTimeLeft(newTime);
+      pausedTimeRef.current = newTime;
     }
   }, [workTime, restTime, isResting, isActive]);
 
-  // Timer logic
-  useEffect(() => {
-    if (isActive && timeLeft > 0) {
-      timerRef.current = setTimeout(() => {
-        setTimeLeft(prev => prev - 1);
-      }, 1000);
-    } else if (isActive && timeLeft === 0) {
-      // Timer completed
-      setIsActive(false);
-      
-      // Toggle between work and rest
-      if (!isResting) {
-        // Work completed, start rest
-        setIsResting(true);
-        setTimeLeft(restTime);
-        setIsActive(true);
-      } else {
-        // Rest completed
-        setIsResting(false);
-        setTimeLeft(workTime);
-        
-        // Call onComplete callback
-        if (onComplete) {
-          onComplete();
-        }
-      }
+  const cancelAnimationFrame = () => {
+    if (animationFrameRef.current !== null) {
+      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
+  };
+
+  // Timer logic using requestAnimationFrame for accurate timing
+  useEffect(() => {
+    let lastTimestamp = 0;
     
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
+    const updateTimer = (timestamp: number) => {
+      if (!startTimeRef.current) {
+        startTimeRef.current = timestamp;
+        lastTimestamp = timestamp;
+      }
+      
+      // Calculate elapsed time since timer started
+      const elapsed = Math.floor((timestamp - startTimeRef.current) / 1000);
+      const newTimeLeft = Math.max(0, pausedTimeRef.current - elapsed);
+      
+      // Only update state if the second has changed or we've reached zero
+      if (newTimeLeft !== timeLeft || newTimeLeft === 0) {
+        setTimeLeft(newTimeLeft);
+      }
+      
+      // Handle timer completion
+      if (newTimeLeft === 0) {
+        cancelAnimationFrame();
+        setIsActive(false);
+        
+        // Toggle between work and rest
+        if (!isResting) {
+          // Work completed, start rest
+          setIsResting(true);
+          setTimeLeft(restTime);
+          pausedTimeRef.current = restTime;
+          startTimeRef.current = null;
+          setIsActive(true);
+        } else {
+          // Rest completed
+          setIsResting(false);
+          setTimeLeft(workTime);
+          pausedTimeRef.current = workTime;
+          startTimeRef.current = null;
+          
+          // Call onComplete callback
+          if (onComplete) {
+            onComplete();
+          }
+        }
+      } else if (isActive) {
+        // Continue animation loop
+        animationFrameRef.current = window.requestAnimationFrame(updateTimer);
       }
     };
-  }, [isActive, timeLeft, isResting, workTime, restTime, onComplete]);
+    
+    if (isActive) {
+      // Start the animation frame loop
+      animationFrameRef.current = window.requestAnimationFrame(updateTimer);
+    } else {
+      // When paused, store the current time left
+      pausedTimeRef.current = timeLeft;
+      startTimeRef.current = null;
+      cancelAnimationFrame();
+    }
+    
+    return cancelAnimationFrame;
+  }, [isActive, isResting, workTime, restTime, onComplete, timeLeft]);
 
   const start = () => {
+    startTimeRef.current = null;
     setIsActive(true);
   };
 
   const pause = () => {
+    pausedTimeRef.current = timeLeft;
     setIsActive(false);
   };
 
   const reset = () => {
+    cancelAnimationFrame();
     setIsActive(false);
     setIsResting(false);
-    setTimeLeft(workTime);
+    const newTime = workTime;
+    setTimeLeft(newTime);
+    pausedTimeRef.current = newTime;
+    startTimeRef.current = null;
   };
 
   const toggleMode = () => {
+    cancelAnimationFrame();
     setIsActive(false);
-    setIsResting(!isResting);
-    setTimeLeft(!isResting ? restTime : workTime);
+    const newIsResting = !isResting;
+    setIsResting(newIsResting);
+    const newTime = newIsResting ? restTime : workTime;
+    setTimeLeft(newTime);
+    pausedTimeRef.current = newTime;
+    startTimeRef.current = null;
   };
 
   return {

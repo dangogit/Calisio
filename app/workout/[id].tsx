@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, Alert, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, Platform, Image, Animated } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { CircularTimer } from '@/components/CircularTimer';
 import { useTimer } from '@/hooks/useTimer';
@@ -7,9 +7,70 @@ import { useWorkoutStore } from '@/store/workoutStore';
 import { useState, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
+import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, useAnimatedProps } from 'react-native-reanimated';
 import colors from '@/constants/colors';
 import { useThemeColor } from '@/hooks/useThemeColor';
+
+const AnimatedCircle = Reanimated.createAnimatedComponent(Circle);
+
+const CircularProgressDisplay = ({
+  progress,         // 0 to 1
+  size = 200,
+  strokeWidth = 8,
+  color = '#FFD700',
+}: {
+  progress: Reanimated.SharedValue<number>;
+  size?: number;
+  strokeWidth?: number;
+  color?: string;
+}) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  const animatedProps = useAnimatedProps(() => {
+    const strokeDashoffset = interpolate(
+      progress.value, 
+      [0, 1], 
+      [circumference, 0]
+    );
+    
+    return {
+      strokeDashoffset
+    };
+  });
+
+  return (
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size}>
+        {/* Background circle */}
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#333"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        {/* Progress circle */}
+        <AnimatedCircle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          fill="none"
+          strokeDasharray={circumference}
+          animatedProps={animatedProps}
+          rotation="-90"
+          originX={size / 2}
+          originY={size / 2}
+        />
+      </Svg>
+    </View>
+  );
+};
 
 export default function WorkoutTimer() {
   const { id } = useLocalSearchParams();
@@ -219,6 +280,16 @@ export default function WorkoutTimer() {
     }, 1500);
   }
 
+  // Add progress animation value
+  const progress = useSharedValue(0);
+  
+  // Update progress when timeLeft changes
+  useEffect(() => {
+    const totalTime = isResting ? currentExercise?.restTime || 30 : currentExercise?.workTime || 45;
+    const currentProgress = 1 - (timeLeft / totalTime);
+    progress.value = withTiming(currentProgress, { duration: 300 });
+  }, [timeLeft, isResting, currentExercise]);
+
   if (isLoading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
@@ -285,7 +356,7 @@ export default function WorkoutTimer() {
         </View>
       ) : (
         <GestureDetector gesture={swipeGesture}>
-          <Animated.View style={[styles.workoutContainer, animatedStyle]}>
+          <Reanimated.View style={[styles.workoutContainer, animatedStyle]}>
             {/* Top stats section */}
             <View style={styles.statsContainer}>
               <View style={styles.statBox}>
@@ -318,14 +389,20 @@ export default function WorkoutTimer() {
 
             {/* Exercise visualization and timer */}
             <View style={styles.timerContainer}>
-              {/* Simple exercise image/icon placeholder */}
               <View style={styles.exerciseImageContainer}>
-                <View style={styles.progressArc} />
-                {isResting ? (
-                  <Text style={styles.exerciseIcon}>🥤</Text>
-                ) : (
-                  <Text style={styles.exerciseIcon}>💪</Text>
-                )}
+                <CircularProgressDisplay 
+                  progress={progress}
+                  size={200} 
+                  strokeWidth={8}
+                  color={isResting ? '#7AB555' : '#00AAFF'}
+                />
+                <View style={styles.exerciseIconContainer}>
+                  {isResting ? (
+                    <Text style={styles.exerciseIcon}>🥤</Text>
+                  ) : (
+                    <Text style={styles.exerciseIcon}>💪</Text>
+                  )}
+                </View>
               </View>
               
               {/* Exercise name and timer */}
@@ -378,7 +455,7 @@ export default function WorkoutTimer() {
                 <List size={24} color="#fff" />
               </Pressable>
             </View>
-          </Animated.View>
+          </Reanimated.View>
         </GestureDetector>
       )}
     </View>
@@ -447,21 +524,15 @@ const styles = StyleSheet.create({
   exerciseImageContainer: {
     width: 200,
     height: 200,
-    borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
     position: 'relative',
   },
-  progressArc: {
+  exerciseIconContainer: {
     position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 6,
-    borderColor: 'transparent',
-    borderTopColor: '#00AAFF',
-    transform: [{ rotate: '-90deg' }],
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   exerciseIcon: {
     fontSize: 60,

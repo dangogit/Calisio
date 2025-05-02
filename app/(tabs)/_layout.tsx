@@ -1,15 +1,21 @@
 import { Tabs } from 'expo-router';
 import { Home, List } from 'lucide-react-native';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function TabLayout() {
+  const backgroundColor = useThemeColor({}, 'background');
+  const tintColor = useThemeColor({}, 'tint');
+  const tabIconDefaultColor = useThemeColor({}, 'tabIconDefault');
+  const textColor = useThemeColor({}, 'text');
+
   return (
     <Tabs
       screenOptions={{
-        tabBarStyle: { backgroundColor: '#000' },
-        tabBarActiveTintColor: '#00FF7F',
-        tabBarInactiveTintColor: '#666',
-        headerStyle: { backgroundColor: '#000' },
-        headerTintColor: '#fff',
+        tabBarStyle: { backgroundColor },
+        tabBarActiveTintColor: tintColor,
+        tabBarInactiveTintColor: tabIconDefaultColor,
+        headerStyle: { backgroundColor },
+        headerTintColor: textColor,
       }}
     >
       <Tabs.Screen

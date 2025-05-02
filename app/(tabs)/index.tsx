@@ -4,12 +4,20 @@ import { ChevronLeft } from 'lucide-react-native';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function WorkoutList() {
   const workouts = useWorkoutStore(state => state.workouts);
   const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Get theme colors
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const tintColor = useThemeColor({}, 'tint');
+  const secondaryTextColor = '#666';
+  const buttonTextColor = useThemeColor({}, 'background');
 
   // Simulate fetching workouts
   useEffect(() => {
@@ -38,19 +46,19 @@ export default function WorkoutList() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color="#00FF7F" />
-        <Text style={styles.loadingText}>טוען אימונים...</Text>
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
+        <ActivityIndicator size="large" color={tintColor} />
+        <Text style={[styles.loadingText, { color: textColor }]}>טוען אימונים...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
         <Text style={styles.errorText}>{error}</Text>
-        <Pressable style={styles.retryButton} onPress={handleRetry}>
-          <Text style={styles.retryButtonText}>נסה שוב</Text>
+        <Pressable style={[styles.retryButton, { backgroundColor: tintColor }]} onPress={handleRetry}>
+          <Text style={[styles.retryButtonText, { color: buttonTextColor }]}>נסה שוב</Text>
         </Pressable>
       </View>
     );
@@ -58,20 +66,20 @@ export default function WorkoutList() {
 
   if (workouts.length === 0) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <Text style={styles.emptyText}>אין אימונים עדיין</Text>
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
+        <Text style={[styles.emptyText, { color: textColor }]}>אין אימונים עדיין</Text>
         <Pressable 
-          style={styles.addButton}
+          style={[styles.addButton, { backgroundColor: tintColor }]}
           onPress={() => router.push('/upload')}
         >
-          <Text style={styles.addButtonText}>הוסף אימון</Text>
+          <Text style={[styles.addButtonText, { color: buttonTextColor }]}>הוסף אימון</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
       <FlatList
         data={workouts}
         keyExtractor={(item) => item.id}
@@ -80,19 +88,19 @@ export default function WorkoutList() {
             style={styles.workoutItem}
             onPress={() => router.push(`/workout/${item.id}`)}
           >
-            <Text style={styles.workoutTitle}>{item.title}</Text>
-            <Text style={styles.workoutExercises}>{item.exercises.length} תרגילים</Text>
-            <ChevronLeft size={20} color="#00FF7F" />
+            <Text style={[styles.workoutTitle, { color: textColor }]}>{item.title}</Text>
+            <Text style={[styles.workoutExercises, { color: secondaryTextColor }]}>{item.exercises.length} תרגילים</Text>
+            <ChevronLeft size={20} color={tintColor} />
           </Pressable>
         )}
         contentContainerStyle={styles.listContent}
       />
       
       <Pressable 
-        style={styles.floatingButton}
+        style={[styles.floatingButton, { backgroundColor: tintColor }]}
         onPress={() => router.push('/create-workout')}
       >
-        <Text style={styles.floatingButtonText}>+</Text>
+        <Text style={[styles.floatingButtonText, { color: buttonTextColor }]}>+</Text>
       </Pressable>
     </View>
   );
@@ -101,7 +109,6 @@ export default function WorkoutList() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
     padding: 16,
   },
   listContent: {
@@ -119,31 +126,26 @@ const styles = StyleSheet.create({
     borderColor: '#222',
   },
   workoutTitle: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
     flex: 1,
     textAlign: 'right',
   },
   workoutExercises: {
-    color: '#666',
     fontSize: 14,
     marginRight: 8,
   },
   emptyText: {
-    color: '#fff',
     fontSize: 18,
     textAlign: 'center',
     marginBottom: 24,
   },
   addButton: {
-    backgroundColor: '#00FF7F',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
   },
   addButtonText: {
-    color: '#000',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -154,17 +156,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#00FF7F',
     alignItems: 'center',
     justifyContent: 'center',
   },
   floatingButtonText: {
-    color: '#000',
     fontSize: 24,
     fontWeight: 'bold',
   },
   loadingText: {
-    color: '#fff',
     fontSize: 16,
     marginTop: 16,
     textAlign: 'center',
@@ -176,13 +175,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#00FF7F',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
   },
   retryButtonText: {
-    color: '#000',
     fontSize: 16,
     fontWeight: 'bold',
   },

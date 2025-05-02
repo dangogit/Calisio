@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { Platform, I18nManager } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ErrorBoundary } from "./error-boundary";
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 // Enable RTL for the entire app
 if (Platform.OS !== 'web') {
@@ -25,6 +26,7 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     ...FontAwesome.font,
   });
+  const backgroundColor = useThemeColor({}, 'background');
 
   useEffect(() => {
     if (error) {
@@ -45,7 +47,7 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <GestureHandlerRootView style={{ flex: 1 }}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor }}>
         <RootLayoutNav />
       </GestureHandlerRootView>
     </ErrorBoundary>
@@ -53,12 +55,16 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
+  // Get theme colors for Stack navigator
+  const stackBackgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+
   return (
     <Stack
       screenOptions={{
         headerBackTitle: "Back",
-        headerStyle: { backgroundColor: '#000' },
-        headerTintColor: '#fff',
+        headerStyle: { backgroundColor: stackBackgroundColor },
+        headerTintColor: textColor,
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

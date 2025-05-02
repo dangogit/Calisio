@@ -3,10 +3,18 @@ import { Upload, Plus } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { useWorkoutStore } from '@/store/workoutStore';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function WorkoutUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const addWorkout = useWorkoutStore(state => state.addWorkout);
+
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const tintColor = useThemeColor({}, 'tint');
+  const secondaryTextColor = '#666';
+  const buttonBackgroundColor = '#111';
+  const buttonBorderColor = '#222';
 
   const handleAddManually = () => {
     router.push('/create-workout');
@@ -61,26 +69,26 @@ export default function WorkoutUpload() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor }]}>
       <Pressable 
-        style={[styles.uploadButton, isUploading && styles.uploadButtonDisabled]} 
+        style={[styles.uploadButton, { backgroundColor: buttonBackgroundColor, borderColor: buttonBorderColor }, isUploading && styles.uploadButtonDisabled]} 
         onPress={handleUploadPdf}
         disabled={isUploading}
       >
-        <Upload size={32} color="#00FF7F" />
-        <Text style={styles.buttonText}>
+        <Upload size={32} color={tintColor} />
+        <Text style={[styles.buttonText, { color: textColor }]}>
           {isUploading ? 'מעלה...' : 'העלה קובץ PDF'}
         </Text>
       </Pressable>
 
-      <Text style={styles.orText}>או</Text>
+      <Text style={[styles.orText, { color: secondaryTextColor }]}>או</Text>
 
       <Pressable 
-        style={styles.uploadButton}
+        style={[styles.uploadButton, { backgroundColor: buttonBackgroundColor, borderColor: buttonBorderColor }]}
         onPress={handleAddManually}
       >
-        <Plus size={32} color="#00FF7F" />
-        <Text style={styles.buttonText}>הוסף אימון ידנית</Text>
+        <Plus size={32} color={tintColor} />
+        <Text style={[styles.buttonText, { color: textColor }]}>הוסף אימון ידנית</Text>
       </Pressable>
     </View>
   );
@@ -89,7 +97,6 @@ export default function WorkoutUpload() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -97,26 +104,21 @@ const styles = StyleSheet.create({
   uploadButton: {
     width: '100%',
     height: 160,
-    backgroundColor: '#111',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 12,
-    borderWidth: 1,
-    borderColor: '#222',
   },
   uploadButtonDisabled: {
     opacity: 0.7,
   },
   buttonText: {
-    color: '#fff',
     fontSize: 18,
     marginTop: 12,
     textAlign: 'center',
     fontWeight: '600',
   },
   orText: {
-    color: '#666',
     fontSize: 16,
     marginVertical: 12,
   },

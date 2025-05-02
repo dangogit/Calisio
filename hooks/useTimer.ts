@@ -10,19 +10,22 @@ export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
   const [timeLeft, setTimeLeft] = useState(workTime);
   const [isActive, setIsActive] = useState(false);
   const [isResting, setIsResting] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
-  const pausedTimeRef = useRef<number>(0);
+  const pausedTimeRef = useRef<number>(workTime);
+  const lastPausedTimeRef = useRef<number>(workTime);
   
   // Reset timer when workTime or restTime changes
   useEffect(() => {
-    if (!isActive) {
+    if (!isActive && !isPaused) {
       const newTime = isResting ? restTime : workTime;
       setTimeLeft(newTime);
       pausedTimeRef.current = newTime;
+      lastPausedTimeRef.current = newTime;
     }
-  }, [workTime, restTime, isResting, isActive]);
+  }, [workTime, restTime, isResting, isActive, isPaused]);
 
   const cancelAnimationFrame = () => {
     if (animationFrameRef.current !== null) {
@@ -54,6 +57,7 @@ export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
       if (newTimeLeft === 0) {
         cancelAnimationFrame();
         setIsActive(false);
+        setIsPaused(false);
         
         // Toggle between work and rest
         if (!isResting) {
@@ -61,6 +65,7 @@ export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
           setIsResting(true);
           setTimeLeft(restTime);
           pausedTimeRef.current = restTime;
+          lastPausedTimeRef.current = restTime;
           startTimeRef.current = null;
           setIsActive(true);
         } else {
@@ -68,6 +73,7 @@ export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
           setIsResting(false);
           setTimeLeft(workTime);
           pausedTimeRef.current = workTime;
+          lastPausedTimeRef.current = workTime;
           startTimeRef.current = null;
           
           // Call onComplete callback
@@ -85,43 +91,53 @@ export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
       // Start the animation frame loop
       animationFrameRef.current = window.requestAnimationFrame(updateTimer);
     } else {
-      // When paused, store the current time left
-      pausedTimeRef.current = timeLeft;
-      startTimeRef.current = null;
       cancelAnimationFrame();
     }
     
     return cancelAnimationFrame;
-  }, [isActive, isResting, workTime, restTime, onComplete, timeLeft]);
+  }, [isActive, isResting, workTime, restTime, onComplete, timeLeft, isPaused]);
 
   const start = () => {
+    if (isPaused) {
+      // If resuming from paused state, use the saved time
+      pausedTimeRef.current = lastPausedTimeRef.current;
+    } else {
+      // Starting fresh
+      pausedTimeRef.current = isResting ? restTime : workTime;
+    }
     startTimeRef.current = null;
+    setIsPaused(false);
     setIsActive(true);
   };
 
   const pause = () => {
-    pausedTimeRef.current = timeLeft;
+    lastPausedTimeRef.current = timeLeft;
     setIsActive(false);
+    setIsPaused(true);
   };
 
   const reset = () => {
     cancelAnimationFrame();
     setIsActive(false);
+    setIsPaused(false);
     setIsResting(false);
     const newTime = workTime;
     setTimeLeft(newTime);
     pausedTimeRef.current = newTime;
+    lastPausedTimeRef.current = newTime;
     startTimeRef.current = null;
   };
 
   const toggleMode = () => {
     cancelAnimationFrame();
     setIsActive(false);
+    setIsPaused(false);
     const newIsResting = !isResting;
     setIsResting(newIsResting);
     const newTime = newIsResting ? restTime : workTime;
     setTimeLeft(newTime);
     pausedTimeRef.current = newTime;
+    lastPausedTimeRef.current = newTime;
     startTimeRef.current = null;
   };
 
@@ -129,6 +145,7 @@ export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
     timeLeft,
     isActive,
     isResting,
+    isPaused,
     start,
     pause,
     reset,

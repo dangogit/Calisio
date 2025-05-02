@@ -98,6 +98,7 @@ export default function WorkoutTimer() {
     timeLeft, 
     isActive, 
     isResting, 
+    isPaused,
     start, 
     pause, 
     reset,
@@ -108,6 +109,15 @@ export default function WorkoutTimer() {
     onComplete: handleTimerComplete,
   });
 
+  // Handle play/pause toggle
+  const handlePlayPause = () => {
+    if (isActive) {
+      pause();
+    } else {
+      start();
+    }
+  };
+
   useEffect(() => {
     // Increment elapsed time counter when timer is active
     let interval: NodeJS.Timeout | null = null;
@@ -116,6 +126,7 @@ export default function WorkoutTimer() {
         setElapsedTime(prev => prev + 1);
       }, 1000);
     }
+    
     return () => {
       if (interval) clearInterval(interval);
     };
@@ -376,7 +387,7 @@ export default function WorkoutTimer() {
             </View>
             {/* Next up section */}
             <View style={styles.nextUpContainer}>
-            <Text style={styles.currentExerciseName}>
+              <Text style={styles.currentExerciseName}>
                 {currentExercise.name}
                 {isSuperset && currentExercise.supersetExercise && ` + ${currentExercise.supersetExercise.name}`}
               </Text>
@@ -417,7 +428,7 @@ export default function WorkoutTimer() {
             {/* Bottom controls */}
             <View style={styles.controlsContainer}>
               
-            <Pressable 
+              <Pressable 
                 style={styles.iconButton} 
                 onPress={() => router.back()}
               >
@@ -433,10 +444,12 @@ export default function WorkoutTimer() {
 
               <Pressable 
                 style={styles.playButton} 
-                onPress={() => isActive ? pause() : start()}
+                onPress={handlePlayPause}
               >
                 {isActive ? (
                   <Pause size={40} color="#fff" />
+                ) : isPaused ? (
+                  <Play size={40} color="#fff" fill="#fff" />
                 ) : (
                   <Play size={40} color="#fff" fill="#fff" />
                 )}

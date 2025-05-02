@@ -374,16 +374,16 @@ export default function WorkoutTimer() {
                 <Text style={styles.statValue}>{formatLongerTime(timeLeft)}</Text>
               </View>
             </View>
-
             {/* Next up section */}
             <View style={styles.nextUpContainer}>
+            <Text style={styles.currentExerciseName}>
+                {currentExercise.name}
+                {isSuperset && currentExercise.supersetExercise && ` + ${currentExercise.supersetExercise.name}`}
+              </Text>
+
               <Text style={styles.nextUpLabel}>סט הבא</Text>
               <Text style={isResting ? styles.nextExerciseName : styles.nextRestName}>
                 {isResting ? (currentSet < totalSets ? currentExercise.name : (nextExercise?.name || "סיום")) : "מנוחה"}
-              </Text>
-              <Text style={styles.currentExerciseName}>
-                {currentExercise.name}
-                {isSuperset && currentExercise.supersetExercise && ` + ${currentExercise.supersetExercise.name}`}
               </Text>
             </View>
 
@@ -406,7 +406,9 @@ export default function WorkoutTimer() {
               </View>
               
               {/* Exercise name and timer */}
-              <Text style={styles.exerciseNameLarge}>{currentExercise.name}</Text>
+              <Text style={styles.exerciseNameLarge}>
+                {isResting ? "מנוחה" : currentExercise.name}
+              </Text>
               <Text style={styles.timerValue}>
                 {formatTime(timeLeft)}
               </Text>
@@ -491,12 +493,12 @@ const styles = StyleSheet.create({
   },
   nextUpContainer: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 2,
   },
   nextUpLabel: {
     color: '#aaa',
     fontSize: 12,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   nextRestName: {
     color: '#7AB555', // Green for rest
@@ -512,8 +514,9 @@ const styles = StyleSheet.create({
   },
   currentExerciseName: {
     color: '#00AAFF', // Blue for current exercise
-    fontSize: 22,
+    fontSize: 30,
     fontWeight: 'bold',
+    marginBottom: 8,
   },
   timerContainer: {
     flex: 1,
@@ -526,7 +529,7 @@ const styles = StyleSheet.create({
     height: 200,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 30,
     position: 'relative',
   },
   exerciseIconContainer: {
@@ -544,7 +547,7 @@ const styles = StyleSheet.create({
   },
   exerciseNameLarge: {
     color: '#00AAFF',
-    fontSize: 36,
+    fontSize: 26,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 16,

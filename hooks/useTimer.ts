@@ -68,6 +68,12 @@ export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
     setTimeLeft(workTime);
   };
 
+  const toggleMode = () => {
+    setIsActive(false);
+    setIsResting(!isResting);
+    setTimeLeft(!isResting ? restTime : workTime);
+  };
+
   return {
     timeLeft,
     isActive,
@@ -75,5 +81,6 @@ export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
     start,
     pause,
     reset,
+    toggleMode,
   };
 };

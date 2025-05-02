@@ -39,7 +39,8 @@ export default function WorkoutTimer() {
     isResting, 
     start, 
     pause, 
-    reset 
+    reset,
+    toggleMode 
   } = useTimer({
     workTime: currentExercise?.workTime || 45,
     restTime: currentExercise?.restTime || 30,
@@ -120,12 +121,12 @@ export default function WorkoutTimer() {
       if (isSuperset) {
         // If we were in the first part of a superset, move to the second part
         setIsSuperset(false);
-        reset();
+        toggleMode();
         start();
       } else if (currentSet < totalSets) {
         // Move to next set
         setCurrentSet(prev => prev + 1);
-        reset();
+        toggleMode();
         start();
       } else {
         // Move to next exercise
@@ -135,11 +136,11 @@ export default function WorkoutTimer() {
       // Work period completed, check if this is a superset
       if (currentExercise?.isSuperset && !isSuperset) {
         setIsSuperset(true);
-        reset();
+        toggleMode();
         start();
       } else {
         // Start rest period
-        reset();
+        toggleMode();
         start();
       }
     }
@@ -178,18 +179,27 @@ export default function WorkoutTimer() {
   }
 
   function handleNextSet() {
-    // Check if we can go to next set
-    if (currentSet < totalSets) {
-      console.log('Going to next set:', currentSet + 1);
-      setCurrentSet(currentSet + 1);
-      reset();
-    } else if (currentExerciseIndex < (workout?.exercises.length || 0) - 1) {
-      // Go to next exercise, first set
-      console.log('Going to next exercise:', currentExerciseIndex + 1);
-      setCurrentExerciseIndex(currentExerciseIndex + 1);
-      setCurrentSet(1);
-      setIsSuperset(false);
-      reset();
+    if (isResting) {
+      // If currently in rest period, go to next set
+      if (currentSet < totalSets) {
+        console.log('Going to next set:', currentSet + 1);
+        setCurrentSet(currentSet + 1);
+        reset();
+        start();
+      } else if (currentExerciseIndex < (workout?.exercises.length || 0) - 1) {
+        // Go to next exercise, first set
+        console.log('Going to next exercise:', currentExerciseIndex + 1);
+        setCurrentExerciseIndex(currentExerciseIndex + 1);
+        setCurrentSet(1);
+        setIsSuperset(false);
+        reset();
+        start();
+      }
+    } else {
+      // If currently in work period, toggle to rest period
+      console.log('Starting rest period');
+      toggleMode();
+      start();
     }
   }
 

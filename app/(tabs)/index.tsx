@@ -132,18 +132,18 @@ export default function PlansScreen() {
             
             <View style={styles.cardContent}>
               <View style={styles.infoItem}>
-                <CalendarCheck size={16} color={tintColor} style={styles.infoIcon} />
                 <Text style={[styles.infoText, { color: secondaryTextColor }]}>3 פעמים בשבוע</Text>
+                <CalendarCheck size={16} color={tintColor} style={styles.infoIcon} />
               </View>
               
               <View style={styles.infoItem}>
-                <Clock size={16} color={tintColor} style={styles.infoIcon} />
                 <Text style={[styles.infoText, { color: secondaryTextColor }]}>45 דק' לאימון</Text>
+                <Clock size={16} color={tintColor} style={styles.infoIcon} />
               </View>
               
               <View style={styles.infoItem}>
-                <BarChartHorizontal size={16} color={tintColor} style={styles.infoIcon} />
                 <Text style={[styles.infoText, { color: secondaryTextColor }]}>{item.exercises.length} תרגילים</Text>
+                <BarChartHorizontal size={16} color={tintColor} style={styles.infoIcon} />
               </View>
             </View>
             
@@ -152,8 +152,8 @@ export default function PlansScreen() {
                 style={[styles.startButton, { backgroundColor: tintColor }]}
                 onPress={() => router.push(`/workout/${item.id}`)}
               >
+                <ChevronLeft size={18} color="#FFFFFF" style={styles.infoIcon} />
                 <Text style={[styles.startButtonText, { color: '#FFFFFF' }]}>התחל אימון</Text>
-                <ChevronLeft size={18} color="#FFFFFF" />
               </Pressable>
             </View>
           </AnimatedPressable>
@@ -226,7 +226,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   infoIcon: {
-    marginLeft: 16,
+    marginLeft: 8,
+    marginRight: 2,
+    
   },
   infoText: {
     fontSize: 14,

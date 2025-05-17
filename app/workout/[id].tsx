@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, Pressable, Alert, Platform, Image, Animated } f
 import { useLocalSearchParams, router } from 'expo-router';
 import { CircularTimer } from '@/components/CircularTimer';
 import { useTimer } from '@/hooks/useTimer';
-import { ChevronRight, ChevronLeft, List, Play, Pause, SkipForward, Home } from 'lucide-react-native';
+import { ChevronRight, ChevronLeft, List, Play, Pause, SkipForward, Home, Pencil } from 'lucide-react-native';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { useState, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,11 +34,13 @@ const CircularProgressDisplay = ({
       [0, 1], 
       [circumference, 0]
     );
-    
     return {
       strokeDashoffset
     };
   });
+
+  // Dynamic color: transparent if progress is 0, else use color
+  const dynamicColor = progress.value === 0 ? 'transparent' : color;
 
   return (
     <View style={{ width: size, height: size }}>
@@ -57,7 +59,7 @@ const CircularProgressDisplay = ({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={color}
+          stroke={dynamicColor}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           fill="none"
@@ -94,18 +96,23 @@ export default function WorkoutTimer() {
   const accentColor = "#00AAFF"; // Blue color for accents
   const restColor = "#7AB555"; // Green color for rest periods
   
-  const { 
-    timeLeft, 
-    isActive, 
-    isResting, 
+  const workTime = isSuperset && currentExercise?.isSuperset && currentExercise?.supersetExercise
+    ? currentExercise.supersetExercise.workTime
+    : currentExercise?.workTime || 45;
+  const restTime = currentExercise?.restTime || 30;
+
+  const {
+    timeLeft,
+    isActive,
+    isResting,
     isPaused,
-    start, 
-    pause, 
+    start,
+    pause,
     reset,
-    toggleMode 
+    toggleMode
   } = useTimer({
-    workTime: currentExercise?.workTime || 45,
-    restTime: currentExercise?.restTime || 30,
+    workTime,
+    restTime,
     onComplete: handleTimerComplete,
   });
 
@@ -298,8 +305,25 @@ export default function WorkoutTimer() {
   useEffect(() => {
     const totalTime = isResting ? currentExercise?.restTime || 30 : currentExercise?.workTime || 45;
     const currentProgress = 1 - (timeLeft / totalTime);
-    progress.value = withTiming(currentProgress, { duration: 300 });
+    // If timer just reset (timeLeft === totalTime), set progress to 0 instantly
+    if (timeLeft === totalTime) {
+      progress.value = 0;
+    } else {
+      progress.value = withTiming(currentProgress, { duration: 300 });
+    }
   }, [timeLeft, isResting, currentExercise]);
+
+  // Ensure progress resets instantly on skip/next/reset and when timer mode changes
+  useEffect(() => {
+    progress.value = 0;
+  }, [currentExerciseIndex, currentSet, isResting]);
+
+  // Also reset progress to 0 when timer is (re)started
+  useEffect(() => {
+    if (!isActive && timeLeft > 0) {
+      progress.value = 0;
+    }
+  }, [isActive, timeLeft]);
 
   if (isLoading) {
     return (
@@ -336,6 +360,13 @@ export default function WorkoutTimer() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
+      {/* Edit button in top right */}
+      <Pressable
+        style={{ position: 'absolute', top: insets.top + 16, right: 16, zIndex: 10, backgroundColor: '#222', borderRadius: 24, padding: 10 }}
+        onPress={() => router.push(`/workout/edit/${id}`)}
+      >
+        <Pencil size={24} color="#00AAFF" />
+      </Pressable>
       {showPlan ? (
         <View style={styles.planContainer}>
           <Text style={styles.planTitle}>תוכנית האימון</Text>

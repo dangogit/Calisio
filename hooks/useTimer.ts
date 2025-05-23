@@ -116,12 +116,18 @@ export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
     setIsPaused(true);
   };
 
-  const reset = () => {
+  const reset = (overrideIsResting?: boolean) => {
     cancelAnimationFrame();
     setIsActive(false);
     setIsPaused(false);
-    setIsResting(false);
-    const newTime = workTime;
+    
+    // Allow overriding the isResting state when resetting
+    const newIsResting = overrideIsResting !== undefined ? overrideIsResting : isResting;
+    setIsResting(newIsResting);
+    
+    // Always get the latest restTime/workTime from props when resetting
+    // This ensures we don't use stale values from closures
+    const newTime = newIsResting ? restTime : workTime;
     setTimeLeft(newTime);
     pausedTimeRef.current = newTime;
     lastPausedTimeRef.current = newTime;

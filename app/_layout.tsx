@@ -8,6 +8,10 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ErrorBoundary } from "./error-boundary";
 import { useThemeColor } from '@/hooks/useThemeColor';
 
+// Import test functions for debugging
+import { testTimerLogic } from '../utils/timerTest';
+import { testSupersetLogic } from '../utils/supersetTest';
+
 // Enable RTL for the entire app
 if (Platform.OS !== 'web') {
   I18nManager.allowRTL(true);

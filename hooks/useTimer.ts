@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface TimerProps {
   workTime: number;
@@ -12,140 +12,90 @@ export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
   const [isResting, setIsResting] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   
-  const animationFrameRef = useRef<number | null>(null);
-  const startTimeRef = useRef<number | null>(null);
-  const pausedTimeRef = useRef<number>(workTime);
-  const lastPausedTimeRef = useRef<number>(workTime);
-  
-  // Reset timer when workTime or restTime changes
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const onCompleteRef = useRef(onComplete);
+
+  // Update callback ref when onComplete changes
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  // Reset timer when duration changes and timer is idle
   useEffect(() => {
     if (!isActive && !isPaused) {
       const newTime = isResting ? restTime : workTime;
       setTimeLeft(newTime);
-      pausedTimeRef.current = newTime;
-      lastPausedTimeRef.current = newTime;
     }
   }, [workTime, restTime, isResting, isActive, isPaused]);
 
-  const cancelAnimationFrame = () => {
-    if (animationFrameRef.current !== null) {
-      window.cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-  };
-
-  // Timer logic using requestAnimationFrame for accurate timing
+  // Main timer logic
   useEffect(() => {
-    let lastTimestamp = 0;
-    
-    const updateTimer = (timestamp: number) => {
-      if (!startTimeRef.current) {
-        startTimeRef.current = timestamp;
-        lastTimestamp = timestamp;
-      }
-      
-      // Calculate elapsed time since timer started
-      const elapsed = Math.floor((timestamp - startTimeRef.current) / 1000);
-      const newTimeLeft = Math.max(0, pausedTimeRef.current - elapsed);
-      
-      // Only update state if the second has changed or we've reached zero
-      if (newTimeLeft !== timeLeft || newTimeLeft === 0) {
-        setTimeLeft(newTimeLeft);
-      }
-      
-      // Handle timer completion
-      if (newTimeLeft === 0) {
-        cancelAnimationFrame();
-        setIsActive(false);
-        setIsPaused(false);
-        
-        // Toggle between work and rest
-        if (!isResting) {
-          // Work completed, start rest
-          setIsResting(true);
-          setTimeLeft(restTime);
-          pausedTimeRef.current = restTime;
-          lastPausedTimeRef.current = restTime;
-          startTimeRef.current = null;
-          setIsActive(true);
-        } else {
-          // Rest completed
-          setIsResting(false);
-          setTimeLeft(workTime);
-          pausedTimeRef.current = workTime;
-          lastPausedTimeRef.current = workTime;
-          startTimeRef.current = null;
-          
-          // Call onComplete callback
-          if (onComplete) {
-            onComplete();
+    if (isActive && !isPaused) {
+      intervalRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            // Timer completed
+            setIsActive(false);
+            if (onCompleteRef.current) {
+              onCompleteRef.current();
+            }
+            return 0;
           }
-        }
-      } else if (isActive) {
-        // Continue animation loop
-        animationFrameRef.current = window.requestAnimationFrame(updateTimer);
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
       }
     };
-    
-    if (isActive) {
-      // Start the animation frame loop
-      animationFrameRef.current = window.requestAnimationFrame(updateTimer);
-    } else {
-      cancelAnimationFrame();
-    }
-    
-    return cancelAnimationFrame;
-  }, [isActive, isResting, workTime, restTime, onComplete, timeLeft, isPaused]);
+  }, [isActive, isPaused]);
 
-  const start = () => {
-    if (isPaused) {
-      // If resuming from paused state, use the saved time
-      pausedTimeRef.current = lastPausedTimeRef.current;
-    } else {
-      // Starting fresh
-      pausedTimeRef.current = isResting ? restTime : workTime;
-    }
-    startTimeRef.current = null;
-    setIsPaused(false);
+  const start = useCallback(() => {
     setIsActive(true);
-  };
+    setIsPaused(false);
+  }, []);
 
-  const pause = () => {
-    lastPausedTimeRef.current = timeLeft;
-    setIsActive(false);
+  const pause = useCallback(() => {
     setIsPaused(true);
-  };
+  }, []);
 
-  const reset = (overrideIsResting?: boolean) => {
-    cancelAnimationFrame();
+  const stop = useCallback(() => {
+    setIsActive(false);
+    setIsPaused(false);
+  }, []);
+
+  const reset = useCallback((toRestMode?: boolean) => {
     setIsActive(false);
     setIsPaused(false);
     
-    // Allow overriding the isResting state when resetting
-    const newIsResting = overrideIsResting !== undefined ? overrideIsResting : isResting;
-    setIsResting(newIsResting);
+    if (toRestMode !== undefined) {
+      setIsResting(toRestMode);
+      setTimeLeft(toRestMode ? restTime : workTime);
+    } else {
+      setTimeLeft(isResting ? restTime : workTime);
+    }
     
-    // Always get the latest restTime/workTime from props when resetting
-    // This ensures we don't use stale values from closures
-    const newTime = newIsResting ? restTime : workTime;
-    setTimeLeft(newTime);
-    pausedTimeRef.current = newTime;
-    lastPausedTimeRef.current = newTime;
-    startTimeRef.current = null;
-  };
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, [workTime, restTime, isResting]);
 
-  const toggleMode = () => {
-    cancelAnimationFrame();
-    setIsActive(false);
-    setIsPaused(false);
+  const toggleMode = useCallback(() => {
     const newIsResting = !isResting;
     setIsResting(newIsResting);
-    const newTime = newIsResting ? restTime : workTime;
-    setTimeLeft(newTime);
-    pausedTimeRef.current = newTime;
-    lastPausedTimeRef.current = newTime;
-    startTimeRef.current = null;
-  };
+    setTimeLeft(newIsResting ? restTime : workTime);
+    setIsActive(false);
+    setIsPaused(false);
+  }, [isResting, workTime, restTime]);
 
   return {
     timeLeft,
@@ -154,6 +104,7 @@ export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
     isPaused,
     start,
     pause,
+    stop,
     reset,
     toggleMode,
   };

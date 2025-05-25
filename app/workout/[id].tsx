@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, Pressable, Alert, Platform, Image, Animated } f
 import { useLocalSearchParams, router } from 'expo-router';
 import { CircularTimer } from '@/components/CircularTimer';
 import { useTimer } from '@/hooks/useTimer';
-import { ChevronRight, ChevronLeft, List, Play, Pause, SkipForward, Home, Pencil } from 'lucide-react-native';
+import { ChevronRight, ChevronLeft, ChevronsRight, ChevronsLeft, List, Play, Pause, SkipForward, Home, Pencil } from 'lucide-react-native';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { useState, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,8 @@ import Svg, { Circle } from 'react-native-svg';
 import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, useAnimatedProps } from 'react-native-reanimated';
 import colors from '@/constants/colors';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { testTimerLogic } from '@/utils/timerTest';
+import * as Haptics from 'expo-haptics';
 
 const AnimatedCircle = Reanimated.createAnimatedComponent(Circle);
 
@@ -86,7 +88,6 @@ export default function WorkoutTimer() {
   const [error, setError] = useState<string | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0); // Track total elapsed time
   const [supersetPhase, setSupersetPhase] = useState<'first' | 'second'>('first');
-  const [timerAction, setTimerAction] = useState<'start_work' | 'start_rest' | null>(null); // New state for sequencing timer actions
   
   const currentExercise = workout?.exercises[currentExerciseIndex];
   const nextExercise = workout?.exercises[currentExerciseIndex + 1];
@@ -111,6 +112,83 @@ export default function WorkoutTimer() {
   // Get the appropriate rest time based on current exercise
   const restTime = currentExercise?.restTime || 30;
 
+  // Move to next set or exercise
+  const moveToNext = () => {
+    if (currentSet < totalSets) {
+      // Move to next set
+      setCurrentSet(prev => prev + 1);
+      setSupersetPhase('first');
+      reset(false); // Reset to work mode
+    } else {
+      // Move to next exercise
+      if (currentExerciseIndex < (workout?.exercises.length || 0) - 1) {
+        setCurrentExerciseIndex(prev => prev + 1);
+        setCurrentSet(1);
+        setSupersetPhase('first');
+        reset(false); // Reset to work mode
+      } else {
+        // Workout completed
+        handleWorkoutComplete();
+      }
+    }
+  };
+
+  // Handle workout completion
+  const handleWorkoutComplete = () => {
+    // For now, just go back to home. In the future, this could show a completion screen
+    // or navigate to the next workout in a program
+    router.replace('/');
+  };
+
+  // Get next workout in the list
+  const getNextWorkout = () => {
+    const allWorkouts = useWorkoutStore.getState().workouts;
+    const currentIndex = allWorkouts.findIndex(w => w.id === id);
+    if (currentIndex >= 0 && currentIndex < allWorkouts.length - 1) {
+      return allWorkouts[currentIndex + 1];
+    }
+    return null;
+  };
+
+  // Navigate to next workout
+  const handleNextWorkout = () => {
+    const nextWorkout = getNextWorkout();
+    if (nextWorkout) {
+      if (isActive || isPaused) {
+        stop(); // Stop current timer
+      }
+      router.replace(`/workout/${nextWorkout.id}`);
+    } else {
+      // No next workout, go to home
+      router.replace('/');
+    }
+  };
+
+  // Timer completion handler
+  const handleTimerComplete = () => {
+    // Haptic feedback on timer completion
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    
+    if (isResting) {
+      // Rest period completed - move to next set/exercise
+      moveToNext();
+    } else {
+      // Work period completed
+      if (currentExercise?.isSuperset && supersetPhase === 'first') {
+        // First exercise in superset completed, move to the second exercise
+        setSupersetPhase('second');
+        reset(false); // Reset to work mode for superset part 2
+        start();
+      } else {
+        // Regular exercise completed OR second exercise in superset completed
+        reset(true); // Reset to rest mode
+        start();
+      }
+    }
+  };
+
   const {
     timeLeft,
     isActive,
@@ -119,6 +197,7 @@ export default function WorkoutTimer() {
     start,
     pause,
     reset,
+    stop,
     toggleMode
   } = useTimer({
     workTime,
@@ -126,35 +205,13 @@ export default function WorkoutTimer() {
     onComplete: handleTimerComplete,
   });
 
-  // Add effect to update timer when exercise context changes and timer is idle
-  useEffect(() => {
-    // Reset the timer with the right duration when superset status changes or context changes
-    if (!isActive && !isPaused) {
-      reset(false); // Explicitly reset to work mode
-    }
-  }, [currentExercise?.id, currentSet, supersetPhase, workTime, restTime, isActive, isPaused, reset]); // Added more explicit dependencies
-
-  // New useEffect to handle timer actions after state updates
-  useEffect(() => {
-    if (timerAction === 'start_work') {
-      // Ensure the latest changes to workTime have been applied before resetting
-      setTimeout(() => {
-        reset(false); // Reset to work mode with fresh workTime value
-        start();
-        setTimerAction(null);
-      }, 0);
-    } else if (timerAction === 'start_rest') {
-      // Ensure the latest changes to restTime have been applied before resetting
-      setTimeout(() => {
-        reset(true); // Reset to rest mode with fresh restTime value
-        start();
-        setTimerAction(null);
-      }, 0);
-    }
-  }, [timerAction, workTime, restTime, reset, start]);
-
   // Handle play/pause toggle
   const handlePlayPause = () => {
+    // Haptic feedback for play/pause
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    
     if (isActive) {
       pause();
     } else {
@@ -184,11 +241,11 @@ export default function WorkoutTimer() {
     })
     .onEnd((e) => {
       if (e.translationX > 100) {
-        // Swiped right - go to previous
-        handlePrevious();
+        // Swiped right - go to previous step
+        handlePreviousSet();
       } else if (e.translationX < -100) {
-        // Swiped left - go to next
-        handleNext();
+        // Swiped left - go to next step
+        handleNextSet();
       }
       translateX.value = withTiming(0);
     });
@@ -228,64 +285,25 @@ export default function WorkoutTimer() {
       }, 2000);
       
       return () => clearTimeout(timeout);
-    }
-  }, [workout]);
-
-  function handleTimerComplete() {
-    if (isResting) {
-      // Rest period completed
-      handleMoveToNext(); // This will set state and then timerAction
-    } else {
-      // Work period completed
-      if (currentExercise?.isSuperset && supersetPhase === 'first') {
-        // First exercise in superset completed, move to the second exercise
-        setSupersetPhase('second');
-        setTimerAction('start_work'); // Signal to start work for superset part 2
-      } else {
-        // Regular exercise completed OR second exercise in superset completed
-        setTimerAction('start_rest'); // Signal to start rest
-      }
-    }
-  }
-
-  function handleMoveToNext() { // Called after rest, or when skipping rest to next work
-    if (currentSet < totalSets) {
-      // Move to next set
-      setCurrentSet((prev: number) => prev + 1); // Added type for prev
-      setSupersetPhase('first');
-      setTimerAction('start_work');
-    } else {
-      // Move to next exercise
-      if (currentExerciseIndex < (workout?.exercises.length || 0) - 1) {
-        setCurrentExerciseIndex((prev: number) => prev + 1); // Added type for prev
-        setCurrentSet(1);
-        setSupersetPhase('first');
-        setTimerAction('start_work');
-      } else {
-        // End of workout
-        router.replace('/');
-      }
-    }
-  }
+    }  }, [workout]);
 
   function handleNext() { // Manual navigation to next exercise
     if (currentExerciseIndex < (workout?.exercises.length || 0) - 1) {
       if (isActive || isPaused) {
-        reset(false); // Stop timer and set to idle work mode for current context
+        stop(); // Stop timer
       }
       setCurrentExerciseIndex((prev: number) => prev + 1); // Added type for prev
       setCurrentSet(1);
       setSupersetPhase('first');
-      // The useEffect for idle timer reset will handle setting correct duration for new context
     } else {
       // End of workout
-      router.replace('/');
+      handleWorkoutComplete();
     }
   }
 
   function handlePrevious() { // Manual navigation to previous exercise/set
     if (isActive || isPaused) {
-      reset(false); // Stop timer and set to idle work mode for current context
+      stop(); // Stop timer
     }
     // First check if we can go to previous set
     if (currentSet > 1) {
@@ -301,17 +319,94 @@ export default function WorkoutTimer() {
       setCurrentSet(prevExerciseSets);
       setSupersetPhase('first');
     }
-    // The useEffect for idle timer reset will handle setting correct duration for new context
   }
 
-  function handleNextSet() { // Skip button
+  function handlePreviousSet() { // Go back one step in progression
+    if (isActive || isPaused) {
+      stop(); // Stop timer
+    }
+    
+    if (isResting) {
+      // Currently resting, go back to last work phase
+      if (currentExercise?.isSuperset) {
+        setSupersetPhase('second'); // Go back to superset phase 2
+      }
+      reset(false); // Reset to work mode
+    } else {
+      // Currently working
+      if (currentExercise?.isSuperset && supersetPhase === 'second') {
+        // In superset phase 2, go back to phase 1
+        setSupersetPhase('first');
+        reset(false); // Reset to work mode
+      } else {
+        // In superset phase 1 or regular exercise, go to previous set's rest if exists
+        if (currentSet > 1 || currentExerciseIndex > 0) {
+          // Go to previous "step" which would be the rest period before this work
+          reset(true); // Go to rest mode
+        }
+      }
+    }
+  }
+
+  function handleNextExercise() { // Skip to next exercise entirely
+    if (currentExerciseIndex < (workout?.exercises.length || 0) - 1) {
+      if (isActive || isPaused) {
+        stop(); // Stop timer
+      }
+      setCurrentExerciseIndex(prev => prev + 1);
+      setCurrentSet(1);
+      setSupersetPhase('first');
+      reset(false); // Reset to work mode
+    } else {
+      // End of workout
+      handleWorkoutComplete();
+    }
+  }
+
+  function handlePreviousExercise() { // Go to previous exercise entirely
+    if (currentExerciseIndex > 0) {
+      if (isActive || isPaused) {
+        stop(); // Stop timer
+      }
+      setCurrentExerciseIndex(prev => prev - 1);
+      setCurrentSet(1);
+      setSupersetPhase('first');
+      reset(false); // Reset to work mode
+    }
+  }
+
+  function handleNextSet() { // Skip button - moves to next step in current progression
+    console.log('🔥 HANDLE NEXT SET called with state:', { 
+      isResting, 
+      supersetPhase,
+      isSuperset: currentExercise?.isSuperset,
+      workTime, 
+      restTime, 
+      currentExerciseName: currentExercise?.name,
+      currentExerciseWorkTime: currentExercise?.workTime,
+      currentExerciseRestTime: currentExercise?.restTime
+    });
+    
+    // Haptic feedback for navigation
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
     if (isResting) {
       // If currently in rest period, go to next set or exercise (which starts work)
-      handleMoveToNext(); // This will set state and then timerAction
+      moveToNext();
     } else {
-      // If currently in work period, skip current work and go to rest.
-      // Make sure we're using the correct restTime for the current exercise
-      setTimerAction('start_rest');
+      // If currently in work period, check if it's a superset
+      if (currentExercise?.isSuperset && supersetPhase === 'first') {
+        // In superset phase 1, move to phase 2
+        setSupersetPhase('second');
+        reset(false); // Reset to work mode for superset part 2
+        setTimeout(() => start(), 0);
+      } else {
+        // Regular exercise OR superset phase 2 completed, go to rest
+        reset(true); // Reset to rest mode
+        setTimeout(() => start(), 0);
+      }
     }
   }
 
@@ -393,13 +488,33 @@ export default function WorkoutTimer() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
-      {/* Edit button in top right */}
-      <Pressable
-        style={{ position: 'absolute', top: insets.top + 16, right: 16, zIndex: 10, backgroundColor: '#222', borderRadius: 24, padding: 10 }}
-        onPress={() => router.push(`/workout/edit/${id}`)}
-      >
-        <Pencil size={24} color="#00AAFF" />
-      </Pressable>
+      {/* Top Navigation Bar */}
+      <View style={styles.topNavBar}>
+        {/* Edit button - Left */}
+        <Pressable
+          style={styles.topNavButton}
+          onPress={() => router.push(`/workout/edit/${id}`)}
+        >
+          <Pencil size={20} color="#00AAFF" />
+        </Pressable>
+        
+        {/* Workout Plan title - Center */}
+        <Pressable
+          style={styles.topNavCenter}
+          onPress={() => setShowPlan(true)}
+        >
+          <List color={textColor} size={20} />
+          <Text style={styles.topNavText}>תוכנית אימון</Text>
+        </Pressable>
+        
+        {/* Home button - Right */}
+        <Pressable
+          style={styles.topNavButton}
+          onPress={() => router.replace('/')}
+        >
+          <Home color={textColor} size={20} />
+        </Pressable>
+      </View>
       {showPlan ? (
         <View style={styles.planContainer}>
           <Text style={styles.planTitle}>תוכנית האימון</Text>
@@ -455,29 +570,46 @@ export default function WorkoutTimer() {
             {/* Next up section */}
             <View style={styles.nextUpContainer}>            
               <Text style={styles.currentExerciseName}>
-                {currentExercise.name}
-                {currentExercise.isSuperset && supersetPhase === 'second' && currentExercise.supersetExercise ? ` + ${currentExercise.supersetExercise.name}` : ''}
+                {currentExercise.isSuperset && supersetPhase === 'second' && currentExercise.supersetExercise 
+                  ? currentExercise.supersetExercise.name 
+                  : currentExercise.name}
+                {currentExercise.isSuperset && !isResting && (
+                  <Text style={{ fontSize: 18, color: '#888' }}>
+                    {` (${supersetPhase === 'first' ? '1' : '2'}/2)`}
+                  </Text>
+                )}
               </Text>
 
-              <Text style={styles.nextUpLabel}>סט הבא</Text>
+              {/* Superset indicator */}
+              {currentExercise.isSuperset && (
+                <View style={styles.supersetIndicator}>
+                  <Text style={styles.supersetText}>סופרסט</Text>
+                  <View style={styles.supersetProgress}>
+                    <View style={[styles.supersetDot, supersetPhase === 'first' && !isResting && styles.supersetDotActive]} />
+                    <View style={[styles.supersetDot, supersetPhase === 'second' && !isResting && styles.supersetDotActive]} />
+                  </View>
+                </View>
+              )}
+
+              <Text style={styles.nextUpLabel}>הבא</Text>
               <Text style={isResting ? styles.nextExerciseName : styles.nextRestName}>
                 {isResting ?
                   // Currently resting, next is work
                   (currentSet < totalSets ?
-                    currentExercise.name : // Next is same exercise, next set
-                    (nextExercise?.name || "סיום") // Next is next exercise or end
+                    `${currentExercise.name} - סט ${currentSet + 1}` : // Next is same exercise, next set
+                    (nextExercise?.name || "סיום האימון") // Next is next exercise or end
                   ) :
                   // Currently working, next is...
                   (currentExercise.isSuperset && supersetPhase === 'first' && currentExercise.supersetExercise ?
-                    currentExercise.supersetExercise.name : // Next is the 2nd part of the superset
-                    "מנוחה" // Next is rest
+                    `${currentExercise.supersetExercise.name} (2/2)` : // Next is the 2nd part of the superset
+                    `מנוחה (${currentExercise.restTime}s)` // Next is rest
                   )
                 }
               </Text>
             </View>
 
             {/* Exercise visualization and timer */}
-            <View style={styles.timerContainer}>
+            <View style={[styles.timerContainer, { marginBottom: 140 }]}>
               <View style={styles.exerciseImageContainer}>
                 <CircularProgressDisplay 
                   progress={progress}
@@ -501,45 +633,75 @@ export default function WorkoutTimer() {
                   {isResting ? 'מנוחה' : 'עבודה'}
                 </Text>
               </View>
-              
-              {/* Control buttons */}
-              <View style={styles.controlsContainer}>
-                <Pressable style={styles.controlButton} onPress={handlePrevious}>
-                  <ChevronRight color={textColor} size={36} />
-                </Pressable>
-                
-                <Pressable style={styles.controlButton} onPress={handlePlayPause}>
-                  {isActive ? (
-                    <Pause color={textColor} size={36} />
-                  ) : (
-                    <Play color={textColor} size={36} />
-                  )}
-                </Pressable>
-                
-                <Pressable style={styles.controlButton} onPress={handleNextSet}>
-                  <SkipForward color={textColor} size={36} />
-                </Pressable>
-              </View>
-              
-              {/* Bottom plan button */}
-              <Pressable 
-                style={styles.planButton}
-                onPress={() => setShowPlan(true)}
-              >
-                <List color={textColor} size={24} />
-                <Text style={styles.planButtonText}>תוכנית האימון</Text>
-              </Pressable>
-              
-              {/* Home button */}
-              <Pressable 
-                style={styles.homeButton}
-                onPress={() => router.replace('/')}
-              >
-                <Home color={textColor} size={24} />
-              </Pressable>
             </View>
           </Reanimated.View>
         </GestureDetector>
+      )}
+      
+      {/* Fixed Footer Controls - Positioned absolutely at bottom */}
+      {!showPlan && (
+        <View style={[styles.footerControls, { paddingBottom: insets.bottom + 20 }]}>
+          {/* Secondary controls row - Exercise navigation */}
+          <View style={styles.secondaryControlsContainer}>
+
+            {/* Previous Set/Phase - Left */}
+            <Pressable 
+              style={[styles.footerButton, styles.footerButtonTertiary]} 
+              onPress={handlePreviousSet}
+            >
+              <ChevronLeft color="#FFFFFF" size={14} />
+            </Pressable>
+            
+            {/* Next Set/Phase - Right */}
+            <Pressable style={[styles.footerButton, styles.footerButtonTertiary]} onPress={handleNextSet}>
+              <ChevronRight color="#FFFFFF" size={14} />
+            </Pressable>
+          </View>
+
+          {/* Main control buttons row - Primary media controls */}
+          <View style={styles.mainControlsContainer}>
+
+            {/* Previous Exercise - Left */}
+            <Pressable 
+              style={[styles.footerButton, styles.footerButtonSecondary, currentExerciseIndex === 0 && styles.footerButtonDisabled]} 
+              onPress={handlePreviousExercise}
+              disabled={currentExerciseIndex === 0}
+            >
+              <ChevronsLeft color={currentExerciseIndex === 0 ? '#777' : '#FFFFFF'} size={16} />
+            </Pressable>
+            
+            {/* Play/Pause - Center (Primary button) */}
+            <Pressable style={[styles.footerButton, styles.footerButtonPrimary]} onPress={handlePlayPause}>
+              {isActive ? (
+                <Pause color="#FFFFFF" size={20} />
+              ) : (
+                <Play color="#FFFFFF" size={20} />
+              )}
+            </Pressable>
+            
+            {/* Next Exercise - Right */}
+            <Pressable 
+              style={[styles.footerButton, styles.footerButtonSecondary, currentExerciseIndex >= (workout?.exercises.length || 0) - 1 && styles.footerButtonDisabled]} 
+              onPress={handleNextExercise}
+              disabled={currentExerciseIndex >= (workout?.exercises.length || 0) - 1}
+            >
+              <ChevronsRight color={currentExerciseIndex >= (workout?.exercises.length || 0) - 1 ? '#777' : '#FFFFFF'} size={16} />
+            </Pressable>
+
+          </View>
+          
+          {/* Next workout button - Separate row */}
+          {getNextWorkout() && (
+            <View style={styles.nextWorkoutContainer}>
+              <Pressable 
+                style={[styles.footerButton, styles.nextWorkoutFooterButton]}
+                onPress={handleNextWorkout}
+              >
+                <SkipForward color="#FFFFFF" size={16} />
+              </Pressable>
+            </View>
+          )}
+        </View>
       )}
     </View>
   );
@@ -599,6 +761,35 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  supersetIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 16,
+  },
+  supersetText: {
+    color: '#00AAFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  supersetProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  supersetDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#555',
+    marginHorizontal: 2,
+  },
+  supersetDotActive: {
+    backgroundColor: '#00AAFF',
+  },
   timerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -638,16 +829,158 @@ const styles = StyleSheet.create({
   controlsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    alignItems: 'center',
     width: '100%',
     marginTop: 40,
+    paddingHorizontal: 10,
   },
   controlButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#333',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  controlButtonMain: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#444',
+  },
+  controlButtonSmall: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+  },
+  controlButtonDisabled: {
+    backgroundColor: '#222',
+    opacity: 0.5,
+  },
+  controlsSection: {
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 20,
+  },
+  controlLabelsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 12,
+    paddingHorizontal: 10,
+  },
+  controlLabel: {
+    color: '#888',
+    fontSize: 12,
+    textAlign: 'center',
+    flex: 1,
+  },
+  controlLabelDisabled: {
+    opacity: 0.5,
+  },
+  // New footer controls
+  footerControls: {
+    position: 'relative',
+    flexDirection: 'column',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  mainControlsContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 15,
+    marginBottom: 25,
+    gap: 10,
+  },
+  secondaryControlsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '60%',
+    alignSelf: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 1,
+  },
+  nextWorkoutContainer: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  footerButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  footerButtonPrimary: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#007AFF',
+    borderWidth: 4,
+    borderColor: '#0056CC',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 12,
+  },
+  footerButtonTertiary: {
+    width: 55,
+    height: 55,
+    borderRadius: 27.5,
+    backgroundColor: '#666666',
+    borderWidth: 3,
+    borderColor: '#888888',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  footerButtonSecondary: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: '#777777',
+    borderWidth: 3,
+    borderColor: '#999999',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  footerButtonDisabled: {
+    backgroundColor: '#1A1A1A',
+    borderColor: '#2A2A2A',
+    opacity: 0.4,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  nextWorkoutFooterButton: {
+    width: 55,
+    height: 55,
+    borderRadius: 27.5,
+    backgroundColor: '#0000',
+    borderWidth: 4,
+    borderColor: '#248A3D',
+    alignSelf: 'auto',
+    shadowColor: '#34C759',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 10,
   },
   planButton: {
     flexDirection: 'row',
@@ -662,6 +995,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginLeft: 8,
     fontSize: 16,
+  },
+  nextWorkoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00AAFF',
+    borderRadius: 20,
+    padding: 12,
+    marginTop: 16,
+  },
+  nextWorkoutButtonText: {
+    color: '#fff',
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   homeButton: {
     position: 'absolute',
@@ -752,5 +1100,40 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#fff',
     fontSize: 16,
+  },
+  topNavBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#1A1A1A',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  topNavButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#222',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topNavCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#222',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flex: 1,
+    marginHorizontal: 12,
+    justifyContent: 'center',
+  },
+  topNavText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
 });

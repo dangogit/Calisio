@@ -11,6 +11,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function PlansScreen() {
   const workouts = useWorkoutStore(state => state.workouts);
+  const addWorkout = useWorkoutStore(state => state.addWorkout);
   const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +30,60 @@ export default function PlansScreen() {
       try {
         // Simulate network request
         await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Add a test workout if none exist for debugging timer issues
+        if (workouts.length === 0) {
+          const testWorkout = {
+            id: 'test-timer-' + Date.now(),
+            title: 'Timer Debug Test',
+            exercises: [
+              {
+                id: 'ex1',
+                name: 'Test Exercise 1',
+                sets: 2,
+                workTime: 10,  // 10 seconds work
+                restTime: 20,  // 20 seconds rest
+              },
+              {
+                id: 'ex2',
+                name: 'Test Exercise 2',
+                sets: 1,
+                workTime: 15,
+                restTime: 30,
+              }
+            ]
+          };
+          
+          const supersetTestWorkout = {
+            id: 'superset-test-' + Date.now(),
+            title: 'Superset Debug Test',
+            exercises: [
+              {
+                id: 'ss1',
+                name: 'Push-ups',
+                sets: 2,
+                workTime: 10,  // 10 seconds for first exercise
+                restTime: 30,  // 30 seconds rest after complete superset
+                isSuperset: true,
+                supersetExercise: {
+                  name: 'Squats',
+                  workTime: 8   // 8 seconds for second exercise
+                }
+              },
+              {
+                id: 'reg1',
+                name: 'Regular Exercise',
+                sets: 2,
+                workTime: 12,
+                restTime: 25,
+              }
+            ]
+          };
+          
+          addWorkout(testWorkout);
+          addWorkout(supersetTestWorkout);
+        }
+        
         setIsLoading(false);
       } catch (err) {
         setError("שגיאת רשת: לא ניתן לטעון את התוכניות. בדוק את החיבור לאינטרנט ונסה שוב.");
@@ -125,7 +180,7 @@ export default function PlansScreen() {
             <View style={styles.cardHeader}>
               <Text style={[styles.workoutTitle, { color: textColor }]}>{item.title}</Text>
               <Image 
-                source={{ uri: item.imageUrl || 'https://via.placeholder.com/60' }} 
+                source={{ uri: 'https://via.placeholder.com/60' }} 
                 style={styles.workoutImage}
               />
             </View>

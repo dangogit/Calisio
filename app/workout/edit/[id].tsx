@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, Platform, Switch } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, Trash2, Save } from 'lucide-react-native';
+import { Plus, Trash2, Save, Link } from 'lucide-react-native';
 import { Exercise } from '@/types/workout';
 
 export default function EditWorkout() {
@@ -32,7 +32,8 @@ export default function EditWorkout() {
         name: '', 
         sets: 3, 
         workTime: 45, 
-        restTime: 30 
+        restTime: 30,
+        isSuperset: false
       }
     ]);
   };
@@ -55,6 +56,38 @@ export default function EditWorkout() {
     ));
   };
 
+  const toggleSuperset = (id: string) => {
+    setExercises(exercises.map(ex => {
+      if (ex.id === id) {
+        const isSuperset = !ex.isSuperset;
+        return {
+          ...ex,
+          isSuperset,
+          supersetExercise: isSuperset ? {
+            name: '',
+            workTime: 45
+          } : undefined
+        };
+      }
+      return ex;
+    }));
+  };
+
+  const updateSupersetExercise = (id: string, field: 'name' | 'workTime', value: any) => {
+    setExercises(exercises.map(ex => {
+      if (ex.id === id && ex.supersetExercise) {
+        return {
+          ...ex,
+          supersetExercise: {
+            ...ex.supersetExercise,
+            [field]: field === 'workTime' ? (parseInt(value) || 0) : value
+          }
+        };
+      }
+      return ex;
+    }));
+  };
+
   const handleSave = async () => {
     if (!title.trim()) {
       setError('יש להזין שם לאימון');
@@ -63,6 +96,14 @@ export default function EditWorkout() {
     const invalidExercises = exercises.filter(ex => !ex.name || !ex.name.trim());
     if (invalidExercises.length > 0) {
       setError('יש להזין שם לכל התרגילים');
+      return;
+    }
+    // Check superset exercises
+    const invalidSupersets = exercises.filter(ex => 
+      ex.isSuperset && (!ex.supersetExercise?.name || !ex.supersetExercise.name.trim())
+    );
+    if (invalidSupersets.length > 0) {
+      setError('יש להזין שם לכל התרגילים בסופרסט');
       return;
     }
     setIsSaving(true);
@@ -108,14 +149,27 @@ export default function EditWorkout() {
           <View key={exercise.id} style={styles.exerciseContainer}>
             <View style={styles.exerciseHeader}>
               <Text style={styles.exerciseNumber}>תרגיל {index + 1}</Text>
-              <Pressable 
-                style={styles.removeButton}
-                onPress={() => removeExercise(exercise.id!)}
-              >
-                <Trash2 size={20} color="#ff4d4d" />
-              </Pressable>
+              <View style={styles.headerControls}>
+                <View style={styles.supersetToggle}>
+                  <Text style={styles.supersetLabel}>סופרסט</Text>
+                  <Switch
+                    value={exercise.isSuperset || false}
+                    onValueChange={() => toggleSuperset(exercise.id!)}
+                    trackColor={{ false: '#333', true: '#00FF7F' }}
+                    thumbColor={exercise.isSuperset ? '#fff' : '#ccc'}
+                  />
+                  <Link size={16} color={exercise.isSuperset ? '#00FF7F' : '#666'} style={styles.supersetIcon} />
+                </View>
+                <Pressable 
+                  style={styles.removeButton}
+                  onPress={() => removeExercise(exercise.id!)}
+                >
+                  <Trash2 size={20} color="#ff4d4d" />
+                </Pressable>
+              </View>
             </View>
-            <Text style={styles.label}>שם התרגיל</Text>
+            
+            <Text style={styles.label}>שם התרגיל הראשון</Text>
             <TextInput
               style={styles.input}
               value={exercise.name}
@@ -123,6 +177,20 @@ export default function EditWorkout() {
               placeholder="הזן שם לתרגיל"
               placeholderTextColor="#666"
             />
+            
+            {exercise.isSuperset && (
+              <>
+                <Text style={[styles.label, styles.supersetLabel]}>שם התרגיל השני (סופרסט)</Text>
+                <TextInput
+                  style={[styles.input, styles.supersetInput]}
+                  value={exercise.supersetExercise?.name || ''}
+                  onChangeText={(value) => updateSupersetExercise(exercise.id!, 'name', value)}
+                  placeholder="הזן שם לתרגיל השני"
+                  placeholderTextColor="#666"
+                />
+              </>
+            )}
+            
             <Text style={styles.label}>מספר סטים</Text>
             <TextInput
               style={styles.input}
@@ -132,9 +200,10 @@ export default function EditWorkout() {
               placeholder="3"
               placeholderTextColor="#666"
             />
+            
             <View style={styles.row}>
               <View style={styles.halfInput}>
-                <Text style={styles.label}>זמן עבודה (שניות)</Text>
+                <Text style={styles.label}>זמן עבודה תרגיל 1 (שניות)</Text>
                 <TextInput
                   style={styles.input}
                   value={exercise.workTime?.toString()}
@@ -144,7 +213,36 @@ export default function EditWorkout() {
                   placeholderTextColor="#666"
                 />
               </View>
-              <View style={styles.halfInput}>
+              
+              {exercise.isSuperset ? (
+                <View style={styles.halfInput}>
+                  <Text style={[styles.label, styles.supersetLabel]}>זמן עבודה תרגיל 2 (שניות)</Text>
+                  <TextInput
+                    style={[styles.input, styles.supersetInput]}
+                    value={exercise.supersetExercise?.workTime?.toString() || ''}
+                    onChangeText={(value) => updateSupersetExercise(exercise.id!, 'workTime', value)}
+                    keyboardType="numeric"
+                    placeholder="45"
+                    placeholderTextColor="#666"
+                  />
+                </View>
+              ) : (
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>זמן מנוחה (שניות)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={exercise.restTime?.toString()}
+                    onChangeText={(value) => updateExercise(exercise.id!, 'restTime', parseInt(value) || 0)}
+                    keyboardType="numeric"
+                    placeholder="30"
+                    placeholderTextColor="#666"
+                  />
+                </View>
+              )}
+            </View>
+            
+            {exercise.isSuperset && (
+              <View style={styles.fullWidth}>
                 <Text style={styles.label}>זמן מנוחה (שניות)</Text>
                 <TextInput
                   style={styles.input}
@@ -155,7 +253,7 @@ export default function EditWorkout() {
                   placeholderTextColor="#666"
                 />
               </View>
-            </View>
+            )}
           </View>
         ))}
         <Pressable 
@@ -231,6 +329,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  headerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  supersetToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  supersetLabel: {
+    color: '#00FF7F',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  supersetIcon: {
+    marginLeft: 4,
+  },
+  supersetInput: {
+    borderColor: '#00FF7F',
+    borderWidth: 2,
+  },
   exerciseNumber: {
     color: '#00FF7F',
     fontSize: 18,
@@ -245,6 +365,10 @@ const styles = StyleSheet.create({
   },
   halfInput: {
     width: '48%',
+  },
+  fullWidth: {
+    width: '100%',
+    marginTop: 8,
   },
   addButton: {
     flexDirection: 'row',

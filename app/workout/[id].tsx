@@ -2,7 +2,7 @@ import { View, StyleSheet, Pressable, Alert, Platform, Image } from 'react-nativ
 import { useLocalSearchParams, router } from 'expo-router';
 import { CircularTimer } from '@/components/CircularTimer';
 import { useTimer } from '@/hooks/useTimer';
-import { ChevronRight, ChevronLeft, ChevronsRight, ChevronsLeft, List, Play, Pause, SkipForward, Home, Pencil } from 'lucide-react-native';
+import { ChevronRight, ChevronLeft, ChevronsRight, ChevronsLeft, List, Play, Pause, SkipForward, Chrome as Home, Pencil } from 'lucide-react-native';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { useState, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -599,7 +599,7 @@ export default function WorkoutTimer() {
                   ? currentExercise.supersetExercise.name 
                   : currentExercise.name}
                 {currentExercise.isSuperset && !isRest && (
-                  <ThemedText color="secondary" style={{ fontSize: 18 }}>
+                  <ThemedText color="secondary\" style={{ fontSize: 18 }}>
                     {` (${supersetPhase === 'first' ? '1' : '2'}/2)`}
                   </ThemedText>
                 )}
@@ -677,7 +677,7 @@ export default function WorkoutTimer() {
                 onPress={handlePlayPause}
               >
                 {isRunning ? (
-                  <Pause color="#FFFFFF" size={24} />
+                  <Pause color="#FFFFFF\" size={24} />
                 ) : (
                   <Play color="#FFFFFF" size={24} />
                 )}

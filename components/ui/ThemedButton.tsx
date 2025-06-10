@@ -119,7 +119,7 @@ export function ThemedButton({
             },
           ]}
         >
-          {loading && <ActivityIndicator size="small" color={textColor} style={styles.loader} />}
+          {loading && <ActivityIndicator size="small\" color={textColor} style={styles.loader} />}
           {!loading && icon && iconPosition === 'left' && (
             <React.Fragment>{icon} </React.Fragment>
           )}

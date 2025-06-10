@@ -1,6 +1,6 @@
 import { View, StyleSheet, FlatList, Pressable, ActivityIndicator, Image } from 'react-native';
 import { router } from 'expo-router';
-import { ChevronLeft, CalendarCheck, Clock, BarChartHorizontal } from 'lucide-react-native';
+import { ChevronLeft, CalendarCheck, Clock, AlignStartHorizontal as BarChartHorizontal } from 'lucide-react-native';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';

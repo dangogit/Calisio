@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { Calendar, Clock, Flame, BarChart2 } from 'lucide-react-native';
+import { Calendar, Clock, Flame, ChartBar as BarChart2 } from 'lucide-react-native';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { ThemedView } from '@/components/ui/ThemedView';
 import { spacing, borderRadius, typography, shadows } from '@/constants/designTokens';

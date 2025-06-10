@@ -11,7 +11,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 
 // Import test functions for debugging
 import { testTimerLogic } from '../utils/timerTest';
-import { testSupersetLogic } from '../utils/supersetTest';
+import { testSupersetLogic } from '../utils/supersetTest'
+import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 
 // Enable RTL for the entire app
 if (Platform.OS !== 'web') {
@@ -28,6 +29,7 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  useFrameworkReady();
   const [loaded, error] = useFonts({
     ...FontAwesome.font,
   });

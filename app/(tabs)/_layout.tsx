@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { ClipboardList, CirclePlus as PlusCircle, Clock } from 'lucide-react-native';
+import { Home, CirclePlus as PlusCircle, Clock } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function TabLayout() {
@@ -32,21 +32,21 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'תוכניות', // Keep for accessibility
+          title: 'בית', // Keep for accessibility
           tabBarIcon: ({ color, focused }) => (
-            <ClipboardList 
+            <Home 
               size={focused ? 28 : 24} 
               color={color}
               strokeWidth={focused ? 2.5 : 2}
             />
           ),
-          tabBarAccessibilityLabel: 'תוכניות אימון', // Accessibility label
+          tabBarAccessibilityLabel: 'דף הבית', // Accessibility label
         }}
       />
       <Tabs.Screen
         name="add-plan"
         options={{
-          title: 'הוסף תוכנית',
+          title: 'צור אימון',
           tabBarIcon: ({ color, focused }) => (
             <PlusCircle 
               size={focused ? 28 : 24} 
@@ -54,7 +54,7 @@ export default function TabLayout() {
               strokeWidth={focused ? 2.5 : 2}
             />
           ),
-          tabBarAccessibilityLabel: 'הוסף תוכנית אימון חדשה',
+          tabBarAccessibilityLabel: 'צור אימון חדש',
         }}
       />
       <Tabs.Screen

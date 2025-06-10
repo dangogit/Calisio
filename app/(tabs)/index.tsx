@@ -1,6 +1,6 @@
 import { View, StyleSheet, FlatList, Pressable, ActivityIndicator, Image, Dimensions } from 'react-native';
 import { router } from 'expo-router';
-import { ChevronLeft, CalendarCheck, Clock, AlignStartHorizontal as BarChartHorizontal, Plus, TrendingUp } from 'lucide-react-native';
+import { ChevronLeft, CalendarCheck, Clock, AlignStartHorizontal as BarChartHorizontal, TrendingUp } from 'lucide-react-native';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
@@ -201,8 +201,6 @@ export default function PlansScreen() {
               onPress={() => router.push('/add-plan')}
               size="large"
               fullWidth
-              icon={<Plus size={20} color="#FFFFFF" />}
-              iconPosition="right"
             />
           </Animated.View>
         </View>
@@ -321,19 +319,6 @@ export default function PlansScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
-      
-      {/* Floating Action Button */}
-      <Animated.View 
-        entering={FadeInUp.delay(500).duration(500)}
-        style={[styles.fab, { backgroundColor: tintColor }, shadows.large]}
-      >
-        <Pressable 
-          style={styles.fabButton}
-          onPress={() => router.push('/add-plan')}
-        >
-          <Plus size={24} color="#FFFFFF" />
-        </Pressable>
-      </Animated.View>
     </ThemedView>
   );
 }
@@ -441,7 +426,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: 100,
+    paddingBottom: spacing.xl, // Reduced padding since no floating button
   },
   workoutCard: {
     borderRadius: borderRadius.xl,
@@ -504,19 +489,5 @@ const styles = StyleSheet.create({
   startButtonText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: spacing.xxl,
-    right: spacing.xxl,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  fabButton: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

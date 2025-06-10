@@ -6,7 +6,8 @@
     "start": "expo start",
     "start-web": "expo start --web",
     "start-web-dev": "DEBUG=expo* expo start --web",
-    "start-tunnel": "expo start --tunnel"
+    "start-tunnel": "expo start --tunnel",
+    "dev": "expo start --web"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",

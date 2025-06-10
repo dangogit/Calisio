@@ -1,6 +1,6 @@
-import { View, StyleSheet, FlatList, Pressable, ActivityIndicator, Image } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, ActivityIndicator, Image, Dimensions } from 'react-native';
 import { router } from 'expo-router';
-import { ChevronLeft, CalendarCheck, Clock, AlignStartHorizontal as BarChartHorizontal } from 'lucide-react-native';
+import { ChevronLeft, CalendarCheck, Clock, AlignStartHorizontal as BarChartHorizontal, Plus, TrendingUp } from 'lucide-react-native';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
@@ -12,6 +12,7 @@ import { spacing, borderRadius, shadows } from '@/constants/designTokens';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function PlansScreen() {
   const workouts = useWorkoutStore(state => state.workouts);
@@ -37,53 +38,82 @@ export default function PlansScreen() {
         if (workouts.length === 0) {
           const testWorkout = {
             id: 'test-timer-' + Date.now(),
-            title: 'Timer Debug Test',
+            title: 'אימון כח עליון',
             exercises: [
               {
                 id: 'ex1',
-                name: 'Test Exercise 1',
-                sets: 2,
-                workTime: 10,  // 10 seconds work
-                restTime: 20,  // 20 seconds rest
+                name: 'מתח עליון',
+                sets: 3,
+                workTime: 45,
+                restTime: 60,
               },
               {
                 id: 'ex2',
-                name: 'Test Exercise 2',
-                sets: 1,
-                workTime: 15,
-                restTime: 30,
+                name: 'שכיבות שמיכה',
+                sets: 3,
+                workTime: 30,
+                restTime: 45,
               }
             ]
           };
           
           const supersetTestWorkout = {
             id: 'superset-test-' + Date.now(),
-            title: 'Superset Debug Test',
+            title: 'אימון סופרסט מתקדם',
             exercises: [
               {
                 id: 'ss1',
-                name: 'Push-ups',
-                sets: 2,
-                workTime: 10,  // 10 seconds for first exercise
-                restTime: 30,  // 30 seconds rest after complete superset
+                name: 'שכיבות שמיכה',
+                sets: 3,
+                workTime: 45,
+                restTime: 90,
                 isSuperset: true,
                 supersetExercise: {
-                  name: 'Squats',
-                  workTime: 8   // 8 seconds for second exercise
+                  name: 'כפיפות בטן',
+                  workTime: 30
                 }
               },
               {
                 id: 'reg1',
-                name: 'Regular Exercise',
-                sets: 2,
-                workTime: 12,
-                restTime: 25,
+                name: 'מתח רחב',
+                sets: 3,
+                workTime: 45,
+                restTime: 60,
+              }
+            ]
+          };
+
+          const fullBodyWorkout = {
+            id: 'full-body-' + Date.now(),
+            title: 'אימון גוף מלא',
+            exercises: [
+              {
+                id: 'fb1',
+                name: 'סקוואט',
+                sets: 4,
+                workTime: 60,
+                restTime: 90,
+              },
+              {
+                id: 'fb2',
+                name: 'לחיצת חזה',
+                sets: 3,
+                workTime: 45,
+                restTime: 75,
+              },
+              {
+                id: 'fb3',
+                name: 'חתירה',
+                sets: 3,
+                workTime: 45,
+                restTime: 75,
               }
             ]
           };
           
           addWorkout(testWorkout);
           addWorkout(supersetTestWorkout);
+          addWorkout(fullBodyWorkout);
         }
         
         setIsLoading(false);
@@ -105,15 +135,30 @@ export default function PlansScreen() {
     }, 1000);
   };
 
+  const calculateWorkoutDuration = (exercises: any[]) => {
+    let totalMinutes = 0;
+    exercises.forEach(exercise => {
+      const workTime = exercise.workTime * exercise.sets;
+      const restTime = exercise.restTime * (exercise.sets - 1);
+      const supersetTime = exercise.isSuperset && exercise.supersetExercise 
+        ? exercise.supersetExercise.workTime * exercise.sets 
+        : 0;
+      totalMinutes += (workTime + restTime + supersetTime) / 60;
+    });
+    return Math.round(totalMinutes);
+  };
+
   if (isLoading) {
     return (
       <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={tintColor} />
-        <Animated.View entering={FadeInUp.delay(300).duration(500)}>
-          <ThemedText type="subtitle" color="secondary" style={styles.centerText}>
-            טוען תוכניות אימון...
-          </ThemedText>
-        </Animated.View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={tintColor} />
+          <Animated.View entering={FadeInUp.delay(300).duration(500)}>
+            <ThemedText type="subtitle" color="secondary" style={styles.centerText}>
+              טוען תוכניות אימון...
+            </ThemedText>
+          </Animated.View>
+        </View>
       </ThemedView>
     );
   }
@@ -121,14 +166,16 @@ export default function PlansScreen() {
   if (error) {
     return (
       <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-        <Animated.View entering={FadeInDown.duration(500)}>
-          <ThemedText color="error" style={styles.centerText}>
-            {error}
-          </ThemedText>
-        </Animated.View>
-        <Animated.View entering={FadeInUp.delay(300).duration(500)} style={styles.buttonContainer}>
-          <ThemedButton title="נסה שוב" onPress={handleRetry} />
-        </Animated.View>
+        <View style={styles.errorContainer}>
+          <Animated.View entering={FadeInDown.duration(500)}>
+            <ThemedText color="error" style={styles.centerText}>
+              {error}
+            </ThemedText>
+          </Animated.View>
+          <Animated.View entering={FadeInUp.delay(300).duration(500)} style={styles.buttonContainer}>
+            <ThemedButton title="נסה שוב" onPress={handleRetry} />
+          </Animated.View>
+        </View>
       </ThemedView>
     );
   }
@@ -136,71 +183,137 @@ export default function PlansScreen() {
   if (workouts.length === 0) {
     return (
       <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-        <Animated.View entering={FadeInDown.duration(500)}>
-          <ThemedText type="subtitle" style={styles.centerText}>
-            אין תוכניות אימון עדיין
-          </ThemedText>
-        </Animated.View>
-        <Animated.View entering={FadeInUp.delay(300).duration(500)} style={styles.buttonContainer}>
-          <ThemedButton 
-            title="הוסף תוכנית אימון" 
-            onPress={() => router.push('/add-plan')}
-            fullWidth
-          />
-        </Animated.View>
+        <View style={styles.emptyContainer}>
+          <Animated.View entering={FadeInDown.duration(500)} style={styles.emptyContent}>
+            <View style={[styles.emptyIcon, { backgroundColor: cardBgColor }]}>
+              <BarChartHorizontal size={48} color={tintColor} />
+            </View>
+            <ThemedText type="title" style={styles.emptyTitle}>
+              התחל את המסע שלך
+            </ThemedText>
+            <ThemedText color="secondary" style={styles.emptySubtitle}>
+              צור את תוכנית האימון הראשונה שלך{'\n'}והתחל להתאמן היום
+            </ThemedText>
+          </Animated.View>
+          <Animated.View entering={FadeInUp.delay(300).duration(500)} style={styles.emptyActions}>
+            <ThemedButton 
+              title="צור תוכנית אימון" 
+              onPress={() => router.push('/add-plan')}
+              size="large"
+              fullWidth
+              icon={<Plus size={20} color="#FFFFFF" />}
+              iconPosition="right"
+            />
+          </Animated.View>
+        </View>
       </ThemedView>
     );
   }
 
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-      <Animated.View entering={FadeInDown.duration(500)}>
-        <ThemedText type="title" style={styles.headerTitle}>
-          תוכניות האימון שלך
-        </ThemedText>
+      {/* Header Section */}
+      <Animated.View entering={FadeInDown.duration(500)} style={styles.header}>
+        <View style={styles.headerContent}>
+          <ThemedText type="title" style={styles.headerTitle}>
+            תוכניות האימון
+          </ThemedText>
+          <ThemedText color="secondary" style={styles.headerSubtitle}>
+            {workouts.length} תוכניות זמינות
+          </ThemedText>
+        </View>
+        
+        {/* Quick Stats */}
+        <View style={[styles.statsCard, { backgroundColor: cardBgColor }, shadows.medium]}>
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <TrendingUp size={20} color={tintColor} />
+            </View>
+            <ThemedText type="defaultSemiBold" style={styles.statValue}>12</ThemedText>
+            <ThemedText color="secondary" style={styles.statLabel}>אימונים השבוע</ThemedText>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: textSecondaryColor }]} />
+          
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <Clock size={20} color={tintColor} />
+            </View>
+            <ThemedText type="defaultSemiBold" style={styles.statValue}>8.5</ThemedText>
+            <ThemedText color="secondary" style={styles.statLabel}>שעות השבוע</ThemedText>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: textSecondaryColor }]} />
+          
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <BarChartHorizontal size={20} color={tintColor} />
+            </View>
+            <ThemedText type="defaultSemiBold" style={styles.statValue}>85%</ThemedText>
+            <ThemedText color="secondary" style={styles.statLabel}>השלמה</ThemedText>
+          </View>
+        </View>
       </Animated.View>
       
+      {/* Workout Plans List */}
       <FlatList
         data={workouts}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
           <AnimatedPressable 
-            entering={FadeInDown.delay(index * 100).duration(400)}
+            entering={FadeInDown.delay(index * 100 + 200).duration(400)}
             style={[styles.workoutCard, { backgroundColor: cardBgColor }, shadows.medium]}
             onPress={() => router.push(`/workout/${item.id}`)}
           >
-            <View style={styles.cardHeader}>
-              <ThemedText type="heading3" style={styles.workoutTitle}>{item.title}</ThemedText>
+            {/* Card Image */}
+            <View style={styles.cardImageContainer}>
               <Image 
-                source={{ uri: 'https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=60' }} 
-                style={styles.workoutImage}
+                source={{ uri: 'https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=400' }} 
+                style={styles.cardImage}
               />
+              <View style={styles.cardImageOverlay}>
+                <View style={[styles.difficultyBadge, { backgroundColor: tintColor }]}>
+                  <ThemedText style={[styles.difficultyText, { color: '#FFFFFF' }]}>
+                    {item.exercises.length > 4 ? 'מתקדם' : item.exercises.length > 2 ? 'בינוני' : 'מתחיל'}
+                  </ThemedText>
+                </View>
+              </View>
             </View>
-            
+
+            {/* Card Content */}
             <View style={styles.cardContent}>
-              <View style={styles.infoItem}>
-                <ThemedText color="secondary" style={styles.infoText}>3 פעמים בשבוע</ThemedText>
-                <CalendarCheck size={16} color={tintColor} style={styles.infoIcon} />
-              </View>
+              <ThemedText type="heading3" style={styles.workoutTitle}>{item.title}</ThemedText>
               
-              <View style={styles.infoItem}>
-                <ThemedText color="secondary" style={styles.infoText}>45 דק' לאימון</ThemedText>
-                <Clock size={16} color={tintColor} style={styles.infoIcon} />
+              <View style={styles.workoutMeta}>
+                <View style={styles.metaItem}>
+                  <BarChartHorizontal size={14} color={textSecondaryColor} />
+                  <ThemedText color="secondary" style={styles.metaText}>
+                    {item.exercises.length} תרגילים
+                  </ThemedText>
+                </View>
+                
+                <View style={styles.metaItem}>
+                  <Clock size={14} color={textSecondaryColor} />
+                  <ThemedText color="secondary" style={styles.metaText}>
+                    {calculateWorkoutDuration(item.exercises)} דק'
+                  </ThemedText>
+                </View>
+                
+                <View style={styles.metaItem}>
+                  <CalendarCheck size={14} color={textSecondaryColor} />
+                  <ThemedText color="secondary" style={styles.metaText}>
+                    3 פעמים בשבוע
+                  </ThemedText>
+                </View>
               </View>
-              
-              <View style={styles.infoItem}>
-                <ThemedText color="secondary" style={styles.infoText}>{item.exercises.length} תרגילים</ThemedText>
-                <BarChartHorizontal size={16} color={tintColor} style={styles.infoIcon} />
-              </View>
-            </View>
-            
-            <View style={styles.cardFooter}>
+
+              {/* Action Button */}
               <Pressable 
                 style={[styles.startButton, { backgroundColor: tintColor }]}
                 onPress={() => router.push(`/workout/${item.id}`)}
               >
-                <ChevronLeft size={18} color="#FFFFFF" style={styles.infoIcon} />
                 <ThemedText style={[styles.startButtonText, { color: '#FFFFFF' }]}>התחל אימון</ThemedText>
+                <ChevronLeft size={16} color="#FFFFFF" />
               </Pressable>
             </View>
           </AnimatedPressable>
@@ -209,12 +322,18 @@ export default function PlansScreen() {
         showsVerticalScrollIndicator={false}
       />
       
-      <Pressable 
-        style={[styles.floatingButton, { backgroundColor: tintColor }, shadows.large]}
-        onPress={() => router.push('/add-plan')}
+      {/* Floating Action Button */}
+      <Animated.View 
+        entering={FadeInUp.delay(500).duration(500)}
+        style={[styles.fab, { backgroundColor: tintColor }, shadows.large]}
       >
-        <ThemedText style={[styles.floatingButtonText, { color: '#FFFFFF' }]}>+</ThemedText>
-      </Pressable>
+        <Pressable 
+          style={styles.fabButton}
+          onPress={() => router.push('/add-plan')}
+        >
+          <Plus size={24} color="#FFFFFF" />
+        </Pressable>
+      </Animated.View>
     </ThemedView>
   );
 }
@@ -222,89 +341,182 @@ export default function PlansScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: spacing.lg,
+    backgroundColor: '#121212',
   },
-  headerTitle: {
-    marginBottom: spacing.xl,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  emptyContent: {
+    alignItems: 'center',
+    marginBottom: spacing.xxxl,
+  },
+  emptyIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xxl,
+  },
+  emptyTitle: {
     textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  emptySubtitle: {
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  emptyActions: {
+    width: '100%',
+    maxWidth: 300,
   },
   centerText: {
     textAlign: 'center',
-    marginBottom: spacing.xxl,
+    marginTop: spacing.lg,
   },
   buttonContainer: {
     alignItems: 'center',
+    marginTop: spacing.xl,
+  },
+  header: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
+  },
+  headerContent: {
+    marginBottom: spacing.xl,
+  },
+  headerTitle: {
+    textAlign: 'right',
+    marginBottom: spacing.xs,
+  },
+  headerSubtitle: {
+    textAlign: 'right',
+  },
+  statsCard: {
+    flexDirection: 'row',
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(31, 125, 83, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  statValue: {
+    fontSize: 18,
+    marginBottom: spacing.xs,
+  },
+  statLabel: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    opacity: 0.3,
   },
   listContent: {
-    paddingBottom: 80,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: 100,
   },
   workoutCard: {
     borderRadius: borderRadius.xl,
     marginBottom: spacing.lg,
     overflow: 'hidden',
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+  cardImageContainer: {
+    position: 'relative',
+    height: 120,
   },
-  workoutTitle: {
-    flex: 1,
-    textAlign: 'right',
+  cardImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
-  workoutImage: {
-    width: 50,
-    height: 50,
-    borderRadius: borderRadius.md,
-    marginLeft: spacing.md,
+  cardImageOverlay: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+  },
+  difficultyBadge: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.xl,
+  },
+  difficultyText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   cardContent: {
     padding: spacing.lg,
   },
-  infoItem: {
+  workoutTitle: {
+    textAlign: 'right',
+    marginBottom: spacing.md,
+  },
+  workoutMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+    flexWrap: 'wrap',
+  },
+  metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
-    justifyContent: 'flex-end',
+    marginBottom: spacing.xs,
   },
-  infoIcon: {
-    marginLeft: spacing.sm,
-    marginRight: 2,
-  },
-  infoText: {
-    fontSize: 14,
-  },
-  cardFooter: {
-    padding: spacing.lg,
-    paddingTop: 0,
+  metaText: {
+    fontSize: 12,
+    marginLeft: spacing.xs,
   },
   startButton: {
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   startButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginRight: spacing.sm,
+    fontWeight: '600',
   },
-  floatingButton: {
+  fab: {
     position: 'absolute',
     bottom: spacing.xxl,
     right: spacing.xxl,
     width: 56,
     height: 56,
     borderRadius: 28,
+  },
+  fabButton: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  floatingButtonText: {
-    fontSize: 24,
-    fontWeight: 'bold',
   },
 });

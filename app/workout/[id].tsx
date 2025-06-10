@@ -114,20 +114,25 @@ export default function WorkoutTimer() {
 
   // Move to next set or exercise
   const moveToNext = () => {
+    console.log('moveToNext called - currentSet:', currentSet, 'totalSets:', totalSets, 'currentExerciseIndex:', currentExerciseIndex);
+    
     if (currentSet < totalSets) {
       // Move to next set
+      console.log('Moving to next set');
       setCurrentSet(prev => prev + 1);
       setSupersetPhase('first');
-      reset(false); // Reset to work mode
+      switchPhase('WORK');
     } else {
       // Move to next exercise
       if (currentExerciseIndex < (workout?.exercises.length || 0) - 1) {
+        console.log('Moving to next exercise');
         setCurrentExerciseIndex(prev => prev + 1);
         setCurrentSet(1);
         setSupersetPhase('first');
-        reset(false); // Reset to work mode
+        switchPhase('WORK');
       } else {
         // Workout completed
+        console.log('Workout completed');
         handleWorkoutComplete();
       }
     }
@@ -171,7 +176,7 @@ export default function WorkoutTimer() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     
-    if (isResting) {
+    if (isRest) {
       // Rest period completed - move to next set/exercise
       moveToNext();
     } else {
@@ -179,26 +184,31 @@ export default function WorkoutTimer() {
       if (currentExercise?.isSuperset && supersetPhase === 'first') {
         // First exercise in superset completed, move to the second exercise
         setSupersetPhase('second');
-        reset(false); // Reset to work mode for superset part 2
-        start();
+        switchPhase('WORK');
       } else {
         // Regular exercise completed OR second exercise in superset completed
-        reset(true); // Reset to rest mode
-        start();
+        switchPhase('REST');
       }
     }
   };
 
   const {
     timeLeft,
-    isActive,
-    isResting,
+    state: timerState,
+    phase: timerPhase,
+    isRunning,
     isPaused,
+    isIdle,
+    isCompleted,
+    isActive,
+    isWork,
+    isRest,
     start,
     pause,
-    reset,
+    resume,
     stop,
-    toggleMode
+    reset,
+    switchPhase
   } = useTimer({
     workTime,
     restTime,
@@ -212,19 +222,33 @@ export default function WorkoutTimer() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     
-    if (isActive) {
+    if (isRunning) {
       pause();
+    } else if (isPaused) {
+      resume();
     } else {
       start();
     }
   };
 
+  // Auto-start timer when workout state changes
+  useEffect(() => {
+    if (isIdle) {
+      // Small delay to ensure state has settled
+      const timer = setTimeout(() => {
+        start();
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentExerciseIndex, currentSet, supersetPhase, timerPhase, isIdle, start]);
+
   useEffect(() => {
     // Increment elapsed time counter when timer is active
-    let interval: ReturnType<typeof setTimeout> | null = null; // Changed NodeJS.Timeout to ReturnType<typeof setTimeout>
+    let interval: ReturnType<typeof setTimeout> | null = null;
     if (isActive) {
       interval = setInterval(() => {
-        setElapsedTime((prev: number) => prev + 1); // Added type for prev
+        setElapsedTime((prev: number) => prev + 1);
       }, 1000);
     }
     
@@ -289,10 +313,8 @@ export default function WorkoutTimer() {
 
   function handleNext() { // Manual navigation to next exercise
     if (currentExerciseIndex < (workout?.exercises.length || 0) - 1) {
-      if (isActive || isPaused) {
-        stop(); // Stop timer
-      }
-      setCurrentExerciseIndex((prev: number) => prev + 1); // Added type for prev
+      stop(); // Stop timer
+      setCurrentExerciseIndex((prev: number) => prev + 1);
       setCurrentSet(1);
       setSupersetPhase('first');
     } else {
@@ -302,9 +324,7 @@ export default function WorkoutTimer() {
   }
 
   function handlePrevious() { // Manual navigation to previous exercise/set
-    if (isActive || isPaused) {
-      stop(); // Stop timer
-    }
+    stop(); // Stop timer
     // First check if we can go to previous set
     if (currentSet > 1) {
       setCurrentSet(currentSet - 1);
@@ -322,27 +342,56 @@ export default function WorkoutTimer() {
   }
 
   function handlePreviousSet() { // Go back one step in progression
-    if (isActive || isPaused) {
-      stop(); // Stop timer
+    console.log('handlePreviousSet called - isRest:', isRest, 'currentSet:', currentSet, 'supersetPhase:', supersetPhase);
+    
+    stop(); // Stop current timer
+    
+    // Haptic feedback for navigation
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     
-    if (isResting) {
-      // Currently resting, go back to last work phase
+    if (isRest) {
+      // Currently in rest mode, go back to the previous work phase
+      console.log('In rest mode, going back to work phase');
       if (currentExercise?.isSuperset) {
-        setSupersetPhase('second'); // Go back to superset phase 2
+        // For superset, go back to the second phase
+        setSupersetPhase('second');
       }
-      reset(false); // Reset to work mode
+      switchPhase('WORK');
     } else {
-      // Currently working
+      // Currently in work mode
       if (currentExercise?.isSuperset && supersetPhase === 'second') {
         // In superset phase 2, go back to phase 1
+        console.log('Superset phase 2 -> 1');
         setSupersetPhase('first');
-        reset(false); // Reset to work mode
+        switchPhase('WORK');
       } else {
-        // In superset phase 1 or regular exercise, go to previous set's rest if exists
-        if (currentSet > 1 || currentExerciseIndex > 0) {
-          // Go to previous "step" which would be the rest period before this work
-          reset(true); // Go to rest mode
+        // In superset phase 1 or regular exercise
+        if (currentSet > 1) {
+          // Go to previous set
+          console.log('Going to previous set');
+          setCurrentSet(prev => prev - 1);
+          if (currentExercise?.isSuperset) {
+            setSupersetPhase('second'); // Go to second phase of previous set
+          }
+          switchPhase('REST'); // Go to rest mode (as if we just finished the previous set)
+        } else if (currentExerciseIndex > 0) {
+          // Go to previous exercise's last set
+          console.log('Going to previous exercise');
+          const prevExerciseIndex = currentExerciseIndex - 1;
+          const prevExercise = workout?.exercises[prevExerciseIndex];
+          const prevExerciseSets = prevExercise?.sets || 1;
+          
+          setCurrentExerciseIndex(prevExerciseIndex);
+          setCurrentSet(prevExerciseSets);
+          
+          if (prevExercise?.isSuperset) {
+            setSupersetPhase('second'); // Go to second phase of last set
+          } else {
+            setSupersetPhase('first');
+          }
+          switchPhase('REST'); // Go to rest mode
         }
       }
     }
@@ -350,13 +399,11 @@ export default function WorkoutTimer() {
 
   function handleNextExercise() { // Skip to next exercise entirely
     if (currentExerciseIndex < (workout?.exercises.length || 0) - 1) {
-      if (isActive || isPaused) {
-        stop(); // Stop timer
-      }
+      stop(); // Stop current timer
       setCurrentExerciseIndex(prev => prev + 1);
       setCurrentSet(1);
       setSupersetPhase('first');
-      reset(false); // Reset to work mode
+      switchPhase('WORK');
     } else {
       // End of workout
       handleWorkoutComplete();
@@ -365,47 +412,37 @@ export default function WorkoutTimer() {
 
   function handlePreviousExercise() { // Go to previous exercise entirely
     if (currentExerciseIndex > 0) {
-      if (isActive || isPaused) {
-        stop(); // Stop timer
-      }
+      stop(); // Stop current timer
       setCurrentExerciseIndex(prev => prev - 1);
       setCurrentSet(1);
       setSupersetPhase('first');
-      reset(false); // Reset to work mode
+      switchPhase('WORK');
     }
   }
 
   function handleNextSet() { // Skip button - moves to next step in current progression
-    console.log('🔥 HANDLE NEXT SET called with state:', { 
-      isResting, 
-      supersetPhase,
-      isSuperset: currentExercise?.isSuperset,
-      workTime, 
-      restTime, 
-      currentExerciseName: currentExercise?.name,
-      currentExerciseWorkTime: currentExercise?.workTime,
-      currentExerciseRestTime: currentExercise?.restTime
-    });
+    console.log('handleNextSet called - isRest:', isRest, 'currentSet:', currentSet, 'totalSets:', totalSets);
     
     // Haptic feedback for navigation
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     
-    if (isResting) {
+    if (isRest) {
       // If currently in rest period, go to next set or exercise (which starts work)
+      console.log('In rest mode, calling moveToNext()');
       moveToNext();
     } else {
       // If currently in work period, check if it's a superset
       if (currentExercise?.isSuperset && supersetPhase === 'first') {
         // In superset phase 1, move to phase 2
+        console.log('Superset phase 1 -> 2');
         setSupersetPhase('second');
-        reset(false); // Reset to work mode for superset part 2
-        setTimeout(() => start(), 0);
+        switchPhase('WORK');
       } else {
         // Regular exercise OR superset phase 2 completed, go to rest
-        reset(true); // Reset to rest mode
-        setTimeout(() => start(), 0);
+        console.log('Going to rest mode');
+        switchPhase('REST');
       }
     }
   }
@@ -431,7 +468,7 @@ export default function WorkoutTimer() {
   
   // Update progress when timeLeft changes
   useEffect(() => {
-    const totalTime = isResting ? restTime : workTime;
+    const totalTime = isRest ? restTime : workTime;
     const currentProgress = 1 - (timeLeft / totalTime);
     // If timer just reset (timeLeft === totalTime), set progress to 0 instantly
     if (timeLeft === totalTime) {
@@ -439,12 +476,12 @@ export default function WorkoutTimer() {
     } else {
       progress.value = withTiming(currentProgress, { duration: 300 });
     }
-  }, [timeLeft, isResting, workTime, restTime]);
+  }, [timeLeft, isRest, workTime, restTime]);
 
   // Ensure progress resets instantly on skip/next/reset and when timer mode changes
   useEffect(() => {
     progress.value = 0;
-  }, [currentExerciseIndex, currentSet, isResting]);
+  }, [currentExerciseIndex, currentSet, isRest]);
 
   // Also reset progress to 0 when timer is (re)started
   useEffect(() => {
@@ -526,13 +563,13 @@ export default function WorkoutTimer() {
                 currentExerciseIndex === index && styles.planExerciseActive
               ]}
               onPress={() => {
-                if (isActive || isPaused) {
-                  reset(false); // Stop timer and set to idle work mode
+                if (isActive) {
+                  stop(); // Stop timer and set to idle work mode
                 }
                 setCurrentExerciseIndex(index);
                 setCurrentSet(1);
                 setSupersetPhase('first');
-                // The useEffect for idle timer reset will handle setting correct duration
+                switchPhase('WORK');
                 setShowPlan(false);
               }}
             >
@@ -573,7 +610,7 @@ export default function WorkoutTimer() {
                 {currentExercise.isSuperset && supersetPhase === 'second' && currentExercise.supersetExercise 
                   ? currentExercise.supersetExercise.name 
                   : currentExercise.name}
-                {currentExercise.isSuperset && !isResting && (
+                {currentExercise.isSuperset && !isRest && (
                   <Text style={{ fontSize: 18, color: '#888' }}>
                     {` (${supersetPhase === 'first' ? '1' : '2'}/2)`}
                   </Text>
@@ -585,15 +622,15 @@ export default function WorkoutTimer() {
                 <View style={styles.supersetIndicator}>
                   <Text style={styles.supersetText}>סופרסט</Text>
                   <View style={styles.supersetProgress}>
-                    <View style={[styles.supersetDot, supersetPhase === 'first' && !isResting && styles.supersetDotActive]} />
-                    <View style={[styles.supersetDot, supersetPhase === 'second' && !isResting && styles.supersetDotActive]} />
+                    <View style={[styles.supersetDot, supersetPhase === 'first' && !isRest && styles.supersetDotActive]} />
+                    <View style={[styles.supersetDot, supersetPhase === 'second' && !isRest && styles.supersetDotActive]} />
                   </View>
                 </View>
               )}
 
               <Text style={styles.nextUpLabel}>הבא</Text>
-              <Text style={isResting ? styles.nextExerciseName : styles.nextRestName}>
-                {isResting ?
+              <Text style={isRest ? styles.nextExerciseName : styles.nextRestName}>
+                {isRest ?
                   // Currently resting, next is work
                   (currentSet < totalSets ?
                     `${currentExercise.name} - סט ${currentSet + 1}` : // Next is same exercise, next set
@@ -615,10 +652,10 @@ export default function WorkoutTimer() {
                   progress={progress}
                   size={200} 
                   strokeWidth={8}
-                  color={isResting ? '#7AB555' : '#00AAFF'}
+                  color={isRest ? '#7AB555' : '#00AAFF'}
                 />
                 <View style={styles.exerciseIconContainer}>
-                  {isResting ? (
+                  {isRest ? (
                     <Text style={styles.exerciseIcon}>🥤</Text>
                   ) : (
                     <Text style={styles.exerciseIcon}>💪</Text>
@@ -630,7 +667,7 @@ export default function WorkoutTimer() {
               <View style={styles.timerInfoContainer}>
                 <Text style={styles.timerValue}>{formatTime(timeLeft)}</Text>
                 <Text style={styles.timerMode}>
-                  {isResting ? 'מנוחה' : 'עבודה'}
+                  {isRest ? 'מנוחה' : 'עבודה'}
                 </Text>
               </View>
             </View>
@@ -672,7 +709,7 @@ export default function WorkoutTimer() {
             
             {/* Play/Pause - Center (Primary button) */}
             <Pressable style={[styles.footerButton, styles.footerButtonPrimary]} onPress={handlePlayPause}>
-              {isActive ? (
+              {isRunning ? (
                 <Pause color="#FFFFFF" size={20} />
               ) : (
                 <Play color="#FFFFFF" size={20} />

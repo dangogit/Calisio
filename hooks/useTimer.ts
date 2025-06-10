@@ -1,111 +1,172 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-interface TimerProps {
+export type TimerState = 'IDLE' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
+export type TimerPhase = 'WORK' | 'REST';
+
+interface UseTimerProps {
   workTime: number;
   restTime: number;
   onComplete?: () => void;
 }
 
-export const useTimer = ({ workTime, restTime, onComplete }: TimerProps) => {
-  const [timeLeft, setTimeLeft] = useState(workTime);
-  const [isActive, setIsActive] = useState(false);
-  const [isResting, setIsResting] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+interface TimerData {
+  timeLeft: number;
+  state: TimerState;
+  phase: TimerPhase;
+}
+
+export function useTimer({ workTime, restTime, onComplete }: UseTimerProps) {
+  const [timer, setTimer] = useState<TimerData>({
+    timeLeft: workTime,
+    state: 'IDLE',
+    phase: 'WORK'
+  });
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const onCompleteRef = useRef(onComplete);
-
-  // Update callback ref when onComplete changes
+  
+  // Update callback ref when it changes
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
-  // Reset timer when duration changes and timer is idle
+  // Main timer effect - handles the countdown
   useEffect(() => {
-    if (!isActive && !isPaused) {
-      const newTime = isResting ? restTime : workTime;
-      setTimeLeft(newTime);
-    }
-  }, [workTime, restTime, isResting, isActive, isPaused]);
-
-  // Main timer logic
-  useEffect(() => {
-    if (isActive && !isPaused) {
+    if (timer.state === 'RUNNING' && timer.timeLeft > 0) {
       intervalRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
+        setTimer(prev => {
+          const newTimeLeft = prev.timeLeft - 1;
+          
+          if (newTimeLeft <= 0) {
             // Timer completed
-            setIsActive(false);
-            if (onCompleteRef.current) {
-              onCompleteRef.current();
-            }
-            return 0;
+            return {
+              ...prev,
+              timeLeft: 0,
+              state: 'COMPLETED'
+            };
           }
-          return prev - 1;
+          
+          return {
+            ...prev,
+            timeLeft: newTimeLeft
+          };
         });
       }, 1000);
     } else {
+      // Clear interval when not running or time is up
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     }
 
+    // Cleanup function
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [isActive, isPaused]);
+  }, [timer.state, timer.timeLeft]);
 
+  // Handle completion
+  useEffect(() => {
+    if (timer.state === 'COMPLETED') {
+      onCompleteRef.current?.();
+    }
+  }, [timer.state]);
+
+  // Update timer duration when work/rest times change
+  useEffect(() => {
+    if (timer.state === 'IDLE') {
+      setTimer(prev => ({
+        ...prev,
+        timeLeft: prev.phase === 'WORK' ? workTime : restTime
+      }));
+    }
+  }, [workTime, restTime, timer.state]);
+
+  // Actions
   const start = useCallback(() => {
-    setIsActive(true);
-    setIsPaused(false);
+    setTimer(prev => ({
+      ...prev,
+      state: 'RUNNING'
+    }));
   }, []);
 
   const pause = useCallback(() => {
-    setIsPaused(true);
+    setTimer(prev => ({
+      ...prev,
+      state: prev.state === 'RUNNING' ? 'PAUSED' : prev.state
+    }));
+  }, []);
+
+  const resume = useCallback(() => {
+    setTimer(prev => ({
+      ...prev,
+      state: prev.state === 'PAUSED' ? 'RUNNING' : prev.state
+    }));
   }, []);
 
   const stop = useCallback(() => {
-    setIsActive(false);
-    setIsPaused(false);
-  }, []);
+    setTimer(prev => ({
+      ...prev,
+      state: 'IDLE',
+      timeLeft: prev.phase === 'WORK' ? workTime : restTime
+    }));
+  }, [workTime, restTime]);
 
-  const reset = useCallback((toRestMode?: boolean) => {
-    setIsActive(false);
-    setIsPaused(false);
+  const reset = useCallback((toPhase?: TimerPhase) => {
+    const newPhase = toPhase || timer.phase;
+    const newTimeLeft = newPhase === 'WORK' ? workTime : restTime;
     
-    if (toRestMode !== undefined) {
-      setIsResting(toRestMode);
-      setTimeLeft(toRestMode ? restTime : workTime);
-    } else {
-      setTimeLeft(isResting ? restTime : workTime);
-    }
-    
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, [workTime, restTime, isResting]);
+    setTimer({
+      timeLeft: newTimeLeft,
+      state: 'IDLE',
+      phase: newPhase
+    });
+  }, [workTime, restTime, timer.phase]);
 
-  const toggleMode = useCallback(() => {
-    const newIsResting = !isResting;
-    setIsResting(newIsResting);
-    setTimeLeft(newIsResting ? restTime : workTime);
-    setIsActive(false);
-    setIsPaused(false);
-  }, [isResting, workTime, restTime]);
+  const switchPhase = useCallback((newPhase: TimerPhase) => {
+    const newTimeLeft = newPhase === 'WORK' ? workTime : restTime;
+    
+    setTimer({
+      timeLeft: newTimeLeft,
+      state: 'IDLE',
+      phase: newPhase
+    });
+  }, [workTime, restTime]);
+
+  // Derived state for easier consumption
+  const isRunning = timer.state === 'RUNNING';
+  const isPaused = timer.state === 'PAUSED';
+  const isIdle = timer.state === 'IDLE';
+  const isCompleted = timer.state === 'COMPLETED';
+  const isActive = isRunning || isPaused;
+  const isWork = timer.phase === 'WORK';
+  const isRest = timer.phase === 'REST';
 
   return {
-    timeLeft,
-    isActive,
-    isResting,
+    // State
+    timeLeft: timer.timeLeft,
+    state: timer.state,
+    phase: timer.phase,
+    
+    // Derived state
+    isRunning,
     isPaused,
+    isIdle,
+    isCompleted,
+    isActive,
+    isWork,
+    isRest,
+    
+    // Actions
     start,
     pause,
+    resume,
     stop,
     reset,
-    toggleMode,
+    switchPhase
   };
-};
+}

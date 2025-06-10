@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, CirclePlus as PlusCircle, Clock } from 'lucide-react-native';
+import { Chrome as Home, CirclePlus as PlusCircle, Clock } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function TabLayout() {

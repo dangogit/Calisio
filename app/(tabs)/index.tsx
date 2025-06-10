@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xl, // Reduced padding since no floating button
+    paddingBottom: spacing.xl,
   },
   workoutCard: {
     borderRadius: borderRadius.xl,

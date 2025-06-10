@@ -1,10 +1,14 @@
-import { View, StyleSheet, FlatList, Pressable, Text, ActivityIndicator, Image } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, ActivityIndicator, Image } from 'react-native';
 import { router } from 'expo-router';
 import { ChevronLeft, CalendarCheck, Clock, BarChartHorizontal } from 'lucide-react-native';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { ThemedText } from '@/components/ui/ThemedText';
+import { ThemedView } from '@/components/ui/ThemedView';
+import { ThemedButton } from '@/components/ui/ThemedButton';
+import { spacing, borderRadius, shadows } from '@/constants/designTokens';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -18,11 +22,9 @@ export default function PlansScreen() {
 
   // Get theme colors
   const backgroundColor = useThemeColor({}, 'background');
-  const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
-  const cardBgColor = '#1A1A1A';
-  const secondaryTextColor = '#888';
-  const buttonTextColor = useThemeColor({}, 'background');
+  const cardBgColor = useThemeColor({}, 'cardBackground');
+  const textSecondaryColor = useThemeColor({}, 'textSecondary');
 
   // Simulate fetching workouts
   useEffect(() => {
@@ -105,68 +107,58 @@ export default function PlansScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={tintColor} />
-        <Animated.Text 
-          entering={FadeInUp.delay(300).duration(500)} 
-          style={[styles.loadingText, { color: textColor }]}
-        >
-          טוען תוכניות אימון...
-        </Animated.Text>
-      </View>
+        <Animated.View entering={FadeInUp.delay(300).duration(500)}>
+          <ThemedText type="subtitle" color="secondary" style={styles.centerText}>
+            טוען תוכניות אימון...
+          </ThemedText>
+        </Animated.View>
+      </ThemedView>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
-        <Animated.Text 
-          entering={FadeInDown.duration(500)} 
-          style={styles.errorText}
-        >
-          {error}
-        </Animated.Text>
-        <Animated.View entering={FadeInUp.delay(300).duration(500)}>
-          <Pressable 
-            style={[styles.retryButton, { backgroundColor: tintColor }]} 
-            onPress={handleRetry}
-          >
-            <Text style={[styles.retryButtonText, { color: buttonTextColor }]}>נסה שוב</Text>
-          </Pressable>
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+        <Animated.View entering={FadeInDown.duration(500)}>
+          <ThemedText color="error" style={styles.centerText}>
+            {error}
+          </ThemedText>
         </Animated.View>
-      </View>
+        <Animated.View entering={FadeInUp.delay(300).duration(500)} style={styles.buttonContainer}>
+          <ThemedButton title="נסה שוב" onPress={handleRetry} />
+        </Animated.View>
+      </ThemedView>
     );
   }
 
   if (workouts.length === 0) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
-        <Animated.Text 
-          entering={FadeInDown.duration(500)} 
-          style={[styles.emptyText, { color: textColor }]}
-        >
-          אין תוכניות אימון עדיין
-        </Animated.Text>
-        <Animated.View entering={FadeInUp.delay(300).duration(500)}>
-          <Pressable 
-            style={[styles.addButton, { backgroundColor: tintColor }]}
-            onPress={() => router.push('/add-plan')}
-          >
-            <Text style={[styles.addButtonText, { color: buttonTextColor }]}>הוסף תוכנית אימון</Text>
-          </Pressable>
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+        <Animated.View entering={FadeInDown.duration(500)}>
+          <ThemedText type="subtitle" style={styles.centerText}>
+            אין תוכניות אימון עדיין
+          </ThemedText>
         </Animated.View>
-      </View>
+        <Animated.View entering={FadeInUp.delay(300).duration(500)} style={styles.buttonContainer}>
+          <ThemedButton 
+            title="הוסף תוכנית אימון" 
+            onPress={() => router.push('/add-plan')}
+            fullWidth
+          />
+        </Animated.View>
+      </ThemedView>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
-      <Animated.Text 
-        entering={FadeInDown.duration(500)} 
-        style={[styles.headerTitle, { color: textColor }]}
-      >
-        תוכניות האימון שלך
-      </Animated.Text>
+    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+      <Animated.View entering={FadeInDown.duration(500)}>
+        <ThemedText type="title" style={styles.headerTitle}>
+          תוכניות האימון שלך
+        </ThemedText>
+      </Animated.View>
       
       <FlatList
         data={workouts}
@@ -174,30 +166,30 @@ export default function PlansScreen() {
         renderItem={({ item, index }) => (
           <AnimatedPressable 
             entering={FadeInDown.delay(index * 100).duration(400)}
-            style={[styles.workoutCard, { backgroundColor: cardBgColor }]}
+            style={[styles.workoutCard, { backgroundColor: cardBgColor }, shadows.medium]}
             onPress={() => router.push(`/workout/${item.id}`)}
           >
             <View style={styles.cardHeader}>
-              <Text style={[styles.workoutTitle, { color: textColor }]}>{item.title}</Text>
+              <ThemedText type="heading3" style={styles.workoutTitle}>{item.title}</ThemedText>
               <Image 
-                source={{ uri: 'https://via.placeholder.com/60' }} 
+                source={{ uri: 'https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=60' }} 
                 style={styles.workoutImage}
               />
             </View>
             
             <View style={styles.cardContent}>
               <View style={styles.infoItem}>
-                <Text style={[styles.infoText, { color: secondaryTextColor }]}>3 פעמים בשבוע</Text>
+                <ThemedText color="secondary" style={styles.infoText}>3 פעמים בשבוע</ThemedText>
                 <CalendarCheck size={16} color={tintColor} style={styles.infoIcon} />
               </View>
               
               <View style={styles.infoItem}>
-                <Text style={[styles.infoText, { color: secondaryTextColor }]}>45 דק' לאימון</Text>
+                <ThemedText color="secondary" style={styles.infoText}>45 דק' לאימון</ThemedText>
                 <Clock size={16} color={tintColor} style={styles.infoIcon} />
               </View>
               
               <View style={styles.infoItem}>
-                <Text style={[styles.infoText, { color: secondaryTextColor }]}>{item.exercises.length} תרגילים</Text>
+                <ThemedText color="secondary" style={styles.infoText}>{item.exercises.length} תרגילים</ThemedText>
                 <BarChartHorizontal size={16} color={tintColor} style={styles.infoIcon} />
               </View>
             </View>
@@ -208,7 +200,7 @@ export default function PlansScreen() {
                 onPress={() => router.push(`/workout/${item.id}`)}
               >
                 <ChevronLeft size={18} color="#FFFFFF" style={styles.infoIcon} />
-                <Text style={[styles.startButtonText, { color: '#FFFFFF' }]}>התחל אימון</Text>
+                <ThemedText style={[styles.startButtonText, { color: '#FFFFFF' }]}>התחל אימון</ThemedText>
               </Pressable>
             </View>
           </AnimatedPressable>
@@ -218,83 +210,80 @@ export default function PlansScreen() {
       />
       
       <Pressable 
-        style={[styles.floatingButton, { backgroundColor: tintColor }]}
+        style={[styles.floatingButton, { backgroundColor: tintColor }, shadows.large]}
         onPress={() => router.push('/add-plan')}
       >
-        <Text style={[styles.floatingButtonText, { color: buttonTextColor }]}>+</Text>
+        <ThemedText style={[styles.floatingButtonText, { color: '#FFFFFF' }]}>+</ThemedText>
       </Pressable>
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: spacing.lg,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
     textAlign: 'center',
+  },
+  centerText: {
+    textAlign: 'center',
+    marginBottom: spacing.xxl,
+  },
+  buttonContainer: {
+    alignItems: 'center',
   },
   listContent: {
     paddingBottom: 80,
   },
   workoutCard: {
-    borderRadius: 16,
-    marginBottom: 16,
+    borderRadius: borderRadius.xl,
+    marginBottom: spacing.lg,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   workoutTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
     flex: 1,
     textAlign: 'right',
   },
   workoutImage: {
     width: 50,
     height: 50,
-    borderRadius: 8,
-    marginLeft: 12,
+    borderRadius: borderRadius.md,
+    marginLeft: spacing.md,
   },
   cardContent: {
-    padding: 16,
+    padding: spacing.lg,
   },
   infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     justifyContent: 'flex-end',
   },
   infoIcon: {
-    marginLeft: 8,
+    marginLeft: spacing.sm,
     marginRight: 2,
-    
   },
   infoText: {
     fontSize: 14,
   },
   cardFooter: {
-    padding: 16,
+    padding: spacing.lg,
     paddingTop: 0,
   },
   startButton: {
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -302,59 +291,20 @@ const styles = StyleSheet.create({
   startButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginRight: 8,
-  },
-  emptyText: {
-    fontSize: 18,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  addButton: {
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    marginRight: spacing.sm,
   },
   floatingButton: {
     position: 'absolute',
-    bottom: 24,
-    right: 24,
+    bottom: spacing.xxl,
+    right: spacing.xxl,
     width: 56,
     height: 56,
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 6,
   },
   floatingButtonText: {
     fontSize: 24,
-    fontWeight: 'bold',
-  },
-  loadingText: {
-    fontSize: 16,
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  errorText: {
-    color: '#ff4d4d',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryButton: {
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-  },
-  retryButtonText: {
-    fontSize: 16,
     fontWeight: 'bold',
   },
 });

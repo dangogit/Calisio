@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, Alert, Platform, Image, Animated } from 'react-native';
+import { View, StyleSheet, Pressable, Alert, Platform, Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { CircularTimer } from '@/components/CircularTimer';
 import { useTimer } from '@/hooks/useTimer';
@@ -9,10 +9,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Svg, { Circle } from 'react-native-svg';
 import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, useAnimatedProps } from 'react-native-reanimated';
-import colors from '@/constants/colors';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { ThemedText } from '@/components/ui/ThemedText';
+import { ThemedView } from '@/components/ui/ThemedView';
+import { ThemedButton } from '@/components/ui/ThemedButton';
+import { spacing, borderRadius, typography, shadows } from '@/constants/designTokens';
 import { testTimerLogic } from '@/utils/timerTest';
-import * as Haptics from 'expo-haptics';
 
 const AnimatedCircle = Reanimated.createAnimatedComponent(Circle);
 
@@ -92,11 +94,15 @@ export default function WorkoutTimer() {
   const currentExercise = workout?.exercises[currentExerciseIndex];
   const nextExercise = workout?.exercises[currentExerciseIndex + 1];
   const totalSets = currentExercise?.sets || 1;
-  const backgroundColor = "#121212"; // Use a dark background
-  const tintColor = "#1F7D53";
-  const textColor = "#fff";
-  const accentColor = "#00AAFF"; // Blue color for accents
-  const restColor = "#7AB555"; // Green color for rest periods
+
+  // Get theme colors
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const tintColor = useThemeColor({}, 'tint');
+  const cardBgColor = useThemeColor({}, 'cardBackground');
+  const textSecondaryColor = useThemeColor({}, 'textSecondary');
+  const workColor = useThemeColor({}, 'workColor');
+  const restColor = useThemeColor({}, 'restColor');
   
   // Calculate work time based on superset phase
   const workTime = (() => {
@@ -171,11 +177,6 @@ export default function WorkoutTimer() {
 
   // Timer completion handler
   const handleTimerComplete = () => {
-    // Haptic feedback on timer completion
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-    
     if (isRest) {
       // Rest period completed - move to next set/exercise
       moveToNext();
@@ -217,11 +218,6 @@ export default function WorkoutTimer() {
 
   // Handle play/pause toggle
   const handlePlayPause = () => {
-    // Haptic feedback for play/pause
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-    
     if (isRunning) {
       pause();
     } else if (isPaused) {
@@ -309,7 +305,8 @@ export default function WorkoutTimer() {
       }, 2000);
       
       return () => clearTimeout(timeout);
-    }  }, [workout]);
+    }
+  }, [workout]);
 
   function handleNext() { // Manual navigation to next exercise
     if (currentExerciseIndex < (workout?.exercises.length || 0) - 1) {
@@ -345,11 +342,6 @@ export default function WorkoutTimer() {
     console.log('handlePreviousSet called - isRest:', isRest, 'currentSet:', currentSet, 'supersetPhase:', supersetPhase);
     
     stop(); // Stop current timer
-    
-    // Haptic feedback for navigation
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     
     if (isRest) {
       // Currently in rest mode, go back to the previous work phase
@@ -423,11 +415,6 @@ export default function WorkoutTimer() {
   function handleNextSet() { // Skip button - moves to next step in current progression
     console.log('handleNextSet called - isRest:', isRest, 'currentSet:', currentSet, 'totalSets:', totalSets);
     
-    // Haptic feedback for navigation
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    
     if (isRest) {
       // If currently in rest period, go to next set or exercise (which starts work)
       console.log('In rest mode, calling moveToNext()');
@@ -492,75 +479,75 @@ export default function WorkoutTimer() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
-        <Text style={styles.loadingText}>טוען אימון...</Text>
-      </View>
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+        <ThemedText type="subtitle" style={styles.centerText}>טוען אימון...</ThemedText>
+      </ThemedView>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Pressable style={styles.retryButton} onPress={handleRetry}>
-          <Text style={styles.retryButtonText}>נסה שוב</Text>
-        </Pressable>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>חזור</Text>
-        </Pressable>
-      </View>
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+        <ThemedText color="error" style={styles.centerText}>{error}</ThemedText>
+        <View style={styles.buttonContainer}>
+          <ThemedButton title="נסה שוב" onPress={handleRetry} />
+          <ThemedButton title="חזור" variant="secondary" onPress={() => router.back()} />
+        </View>
+      </ThemedView>
     );
   }
 
   if (!workout || !currentExercise) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
-        <Text style={styles.errorText}>האימון לא נמצא</Text>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>חזור</Text>
-        </Pressable>
-      </View>
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+        <ThemedText color="error" style={styles.centerText}>האימון לא נמצא</ThemedText>
+        <View style={styles.buttonContainer}>
+          <ThemedButton title="חזור" onPress={() => router.back()} />
+        </View>
+      </ThemedView>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       {/* Top Navigation Bar */}
-      <View style={styles.topNavBar}>
+      <View style={[styles.topNavBar, { backgroundColor: cardBgColor }]}>
         {/* Edit button - Left */}
         <Pressable
-          style={styles.topNavButton}
+          style={[styles.topNavButton, { backgroundColor: cardBgColor }]}
           onPress={() => router.push(`/workout/edit/${id}`)}
         >
-          <Pencil size={20} color="#00AAFF" />
+          <Pencil size={20} color={workColor} />
         </Pressable>
         
         {/* Workout Plan title - Center */}
         <Pressable
-          style={styles.topNavCenter}
+          style={[styles.topNavCenter, { backgroundColor: cardBgColor }]}
           onPress={() => setShowPlan(true)}
         >
           <List color={textColor} size={20} />
-          <Text style={styles.topNavText}>תוכנית אימון</Text>
+          <ThemedText style={styles.topNavText}>תוכנית אימון</ThemedText>
         </Pressable>
         
         {/* Home button - Right */}
         <Pressable
-          style={styles.topNavButton}
+          style={[styles.topNavButton, { backgroundColor: cardBgColor }]}
           onPress={() => router.replace('/')}
         >
           <Home color={textColor} size={20} />
         </Pressable>
       </View>
+
       {showPlan ? (
         <View style={styles.planContainer}>
-          <Text style={styles.planTitle}>תוכנית האימון</Text>
-          {workout.exercises.map((exercise: any, index: number) => ( // Added types for exercise and index
+          <ThemedText type="title" style={styles.planTitle}>תוכנית האימון</ThemedText>
+          {workout.exercises.map((exercise: any, index: number) => (
             <Pressable 
               key={exercise.id}
               style={[
                 styles.planExercise,
-                currentExerciseIndex === index && styles.planExerciseActive
+                { backgroundColor: cardBgColor },
+                currentExerciseIndex === index && { backgroundColor: tintColor }
               ]}
               onPress={() => {
                 if (isActive) {
@@ -573,16 +560,16 @@ export default function WorkoutTimer() {
                 setShowPlan(false);
               }}
             >
-              <Text style={styles.planExerciseName}>{exercise.name}</Text>
-              <Text style={styles.planExerciseSets}>{exercise.sets} סטים</Text>
+              <ThemedText style={styles.planExerciseName}>{exercise.name}</ThemedText>
+              <ThemedText color="secondary" style={styles.planExerciseSets}>{exercise.sets} סטים</ThemedText>
             </Pressable>
           ))}
-          <Pressable 
-            style={styles.closePlanButton}
+          <ThemedButton 
+            title="סגור"
+            variant="secondary"
             onPress={() => setShowPlan(false)}
-          >
-            <Text style={styles.closePlanButtonText}>סגור</Text>
-          </Pressable>
+            fullWidth
+          />
         </View>
       ) : (
         <GestureDetector gesture={swipeGesture}>
@@ -590,46 +577,59 @@ export default function WorkoutTimer() {
             {/* Top stats section */}
             <View style={styles.statsContainer}>
               <View style={styles.statBox}>
-                <Text style={styles.statLabel}>זמן שעבר</Text>
-                <Text style={styles.statValue}>{formatLongerTime(elapsedTime)}</Text>
+                <ThemedText color="secondary" style={styles.statLabel}>זמן שעבר</ThemedText>
+                <ThemedText type="defaultSemiBold" style={styles.statValue}>{formatLongerTime(elapsedTime)}</ThemedText>
               </View>
               
               <View style={styles.statBox}>
-                <Text style={styles.statLabel}>סטים</Text>
-                <Text style={styles.statValue}>{currentSet}/{totalSets}</Text>
+                <ThemedText color="secondary" style={styles.statLabel}>סטים</ThemedText>
+                <ThemedText type="defaultSemiBold" style={styles.statValue}>{currentSet}/{totalSets}</ThemedText>
               </View>
               
               <View style={styles.statBox}>
-                <Text style={styles.statLabel}>זמן שנותר</Text>
-                <Text style={styles.statValue}>{formatLongerTime(timeLeft)}</Text>
+                <ThemedText color="secondary" style={styles.statLabel}>זמן שנותר</ThemedText>
+                <ThemedText type="defaultSemiBold" style={styles.statValue}>{formatLongerTime(timeLeft)}</ThemedText>
               </View>
             </View>
+
             {/* Next up section */}
             <View style={styles.nextUpContainer}>            
-              <Text style={styles.currentExerciseName}>
+              <ThemedText type="title" style={styles.currentExerciseName}>
                 {currentExercise.isSuperset && supersetPhase === 'second' && currentExercise.supersetExercise 
                   ? currentExercise.supersetExercise.name 
                   : currentExercise.name}
                 {currentExercise.isSuperset && !isRest && (
-                  <Text style={{ fontSize: 18, color: '#888' }}>
+                  <ThemedText color="secondary" style={{ fontSize: 18 }}>
                     {` (${supersetPhase === 'first' ? '1' : '2'}/2)`}
-                  </Text>
+                  </ThemedText>
                 )}
-              </Text>
+              </ThemedText>
 
               {/* Superset indicator */}
               {currentExercise.isSuperset && (
-                <View style={styles.supersetIndicator}>
-                  <Text style={styles.supersetText}>סופרסט</Text>
+                <View style={[styles.supersetIndicator, { backgroundColor: cardBgColor }]}>
+                  <ThemedText color="info" style={styles.supersetText}>סופרסט</ThemedText>
                   <View style={styles.supersetProgress}>
-                    <View style={[styles.supersetDot, supersetPhase === 'first' && !isRest && styles.supersetDotActive]} />
-                    <View style={[styles.supersetDot, supersetPhase === 'second' && !isRest && styles.supersetDotActive]} />
+                    <View style={[
+                      styles.supersetDot, 
+                      { backgroundColor: textSecondaryColor },
+                      supersetPhase === 'first' && !isRest && { backgroundColor: workColor }
+                    ]} />
+                    <View style={[
+                      styles.supersetDot, 
+                      { backgroundColor: textSecondaryColor },
+                      supersetPhase === 'second' && !isRest && { backgroundColor: workColor }
+                    ]} />
                   </View>
                 </View>
               )}
 
-              <Text style={styles.nextUpLabel}>הבא</Text>
-              <Text style={isRest ? styles.nextExerciseName : styles.nextRestName}>
+              <ThemedText color="secondary" style={styles.nextUpLabel}>הבא</ThemedText>
+              <ThemedText 
+                color={isRest ? "info" : "success"} 
+                type="defaultSemiBold" 
+                style={styles.nextExerciseName}
+              >
                 {isRest ?
                   // Currently resting, next is work
                   (currentSet < totalSets ?
@@ -642,7 +642,7 @@ export default function WorkoutTimer() {
                     `מנוחה (${currentExercise.restTime}s)` // Next is rest
                   )
                 }
-              </Text>
+              </ThemedText>
             </View>
 
             {/* Exercise visualization and timer */}
@@ -652,23 +652,23 @@ export default function WorkoutTimer() {
                   progress={progress}
                   size={200} 
                   strokeWidth={8}
-                  color={isRest ? '#7AB555' : '#00AAFF'}
+                  color={isRest ? restColor : workColor}
                 />
-                <View style={styles.exerciseIconContainer}>
+                <View style={[styles.exerciseIconContainer, { backgroundColor: cardBgColor }]}>
                   {isRest ? (
-                    <Text style={styles.exerciseIcon}>🥤</Text>
+                    <ThemedText style={styles.exerciseIcon}>🥤</ThemedText>
                   ) : (
-                    <Text style={styles.exerciseIcon}>💪</Text>
+                    <ThemedText style={styles.exerciseIcon}>💪</ThemedText>
                   )}
                 </View>
               </View>
               
               {/* Exercise name and timer */}
               <View style={styles.timerInfoContainer}>
-                <Text style={styles.timerValue}>{formatTime(timeLeft)}</Text>
-                <Text style={styles.timerMode}>
+                <ThemedText type="massive" style={styles.timerValue}>{formatTime(timeLeft)}</ThemedText>
+                <ThemedText color="secondary" type="subtitle" style={styles.timerMode}>
                   {isRest ? 'מנוחה' : 'עבודה'}
-                </Text>
+                </ThemedText>
               </View>
             </View>
           </Reanimated.View>
@@ -677,30 +677,35 @@ export default function WorkoutTimer() {
       
       {/* Fixed Footer Controls - Positioned absolutely at bottom */}
       {!showPlan && (
-        <View style={[styles.footerControls, { paddingBottom: insets.bottom + 20 }]}>
+        <View style={[styles.footerControls, { paddingBottom: insets.bottom + spacing.xl }]}>
           {/* Secondary controls row - Exercise navigation */}
           <View style={styles.secondaryControlsContainer}>
-
             {/* Previous Set/Phase - Left */}
             <Pressable 
-              style={[styles.footerButton, styles.footerButtonTertiary]} 
+              style={[styles.footerButton, styles.footerButtonTertiary, { backgroundColor: textSecondaryColor }]} 
               onPress={handlePreviousSet}
             >
               <ChevronLeft color="#FFFFFF" size={14} />
             </Pressable>
             
             {/* Next Set/Phase - Right */}
-            <Pressable style={[styles.footerButton, styles.footerButtonTertiary]} onPress={handleNextSet}>
+            <Pressable 
+              style={[styles.footerButton, styles.footerButtonTertiary, { backgroundColor: textSecondaryColor }]} 
+              onPress={handleNextSet}
+            >
               <ChevronRight color="#FFFFFF" size={14} />
             </Pressable>
           </View>
 
           {/* Main control buttons row - Primary media controls */}
           <View style={styles.mainControlsContainer}>
-
             {/* Previous Exercise - Left */}
             <Pressable 
-              style={[styles.footerButton, styles.footerButtonSecondary, currentExerciseIndex === 0 && styles.footerButtonDisabled]} 
+              style={[
+                styles.footerButton, 
+                styles.footerButtonSecondary,
+                { backgroundColor: currentExerciseIndex === 0 ? '#1A1A1A' : '#777777' }
+              ]} 
               onPress={handlePreviousExercise}
               disabled={currentExerciseIndex === 0}
             >
@@ -708,7 +713,10 @@ export default function WorkoutTimer() {
             </Pressable>
             
             {/* Play/Pause - Center (Primary button) */}
-            <Pressable style={[styles.footerButton, styles.footerButtonPrimary]} onPress={handlePlayPause}>
+            <Pressable 
+              style={[styles.footerButton, styles.footerButtonPrimary, { backgroundColor: workColor }]} 
+              onPress={handlePlayPause}
+            >
               {isRunning ? (
                 <Pause color="#FFFFFF" size={20} />
               ) : (
@@ -718,20 +726,23 @@ export default function WorkoutTimer() {
             
             {/* Next Exercise - Right */}
             <Pressable 
-              style={[styles.footerButton, styles.footerButtonSecondary, currentExerciseIndex >= (workout?.exercises.length || 0) - 1 && styles.footerButtonDisabled]} 
+              style={[
+                styles.footerButton, 
+                styles.footerButtonSecondary,
+                { backgroundColor: currentExerciseIndex >= (workout?.exercises.length || 0) - 1 ? '#1A1A1A' : '#777777' }
+              ]} 
               onPress={handleNextExercise}
               disabled={currentExerciseIndex >= (workout?.exercises.length || 0) - 1}
             >
               <ChevronsRight color={currentExerciseIndex >= (workout?.exercises.length || 0) - 1 ? '#777' : '#FFFFFF'} size={16} />
             </Pressable>
-
           </View>
           
           {/* Next workout button - Separate row */}
           {getNextWorkout() && (
             <View style={styles.nextWorkoutContainer}>
               <Pressable 
-                style={[styles.footerButton, styles.nextWorkoutFooterButton]}
+                style={[styles.footerButton, styles.nextWorkoutFooterButton, { backgroundColor: '#1F7D53' }]}
                 onPress={handleNextWorkout}
               >
                 <SkipForward color="#FFFFFF" size={16} />
@@ -740,78 +751,70 @@ export default function WorkoutTimer() {
           )}
         </View>
       )}
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+  },
+  centerText: {
+    textAlign: 'center',
+    marginTop: 100,
+    marginBottom: spacing.xl,
+  },
+  buttonContainer: {
+    alignItems: 'center',
+    gap: spacing.lg,
   },
   workoutContainer: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.xl,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
-    marginBottom: 24,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xxl,
   },
   statBox: {
     alignItems: 'center',
   },
   statLabel: {
-    color: '#888',
-    fontSize: 14,
-    marginBottom: 4,
+    fontSize: typography.fontSize.sm,
+    marginBottom: spacing.xs,
   },
   statValue: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: typography.fontSize.lg,
   },
   nextUpContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
   },
   currentExerciseName: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   nextUpLabel: {
-    color: '#888',
-    fontSize: 14,
-    marginBottom: 4,
+    fontSize: typography.fontSize.sm,
+    marginBottom: spacing.xs,
   },
   nextExerciseName: {
-    color: '#00AAFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  nextRestName: {
-    color: '#7AB555',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: typography.fontSize.lg,
   },
   supersetIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#2A2A2A',
-    borderRadius: 16,
+    marginVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.xl,
   },
   supersetText: {
-    color: '#00AAFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginRight: 8,
+    fontSize: typography.fontSize.xs,
+    fontWeight: typography.fontWeight.bold,
+    marginRight: spacing.sm,
   },
   supersetProgress: {
     flexDirection: 'row',
@@ -821,11 +824,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#555',
     marginHorizontal: 2,
-  },
-  supersetDotActive: {
-    backgroundColor: '#00AAFF',
   },
   timerContainer: {
     alignItems: 'center',
@@ -833,17 +832,15 @@ const styles = StyleSheet.create({
   },
   timerInfoContainer: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: spacing.xl,
   },
   timerValue: {
-    color: '#fff',
-    fontSize: 40,
-    fontWeight: 'bold',
+    fontSize: typography.fontSize.huge,
+    fontWeight: typography.fontWeight.bold,
   },
   timerMode: {
-    color: '#888',
-    fontSize: 20,
-    marginTop: 8,
+    fontSize: typography.fontSize.xl,
+    marginTop: spacing.sm,
   },
   exerciseImageContainer: {
     width: 200,
@@ -856,67 +853,13 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#222',
     alignItems: 'center',
     justifyContent: 'center',
   },
   exerciseIcon: {
     fontSize: 40,
   },
-  controlsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 40,
-    paddingHorizontal: 10,
-  },
-  controlButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#333',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  controlButtonMain: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#444',
-  },
-  controlButtonSmall: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-  },
-  controlButtonDisabled: {
-    backgroundColor: '#222',
-    opacity: 0.5,
-  },
-  controlsSection: {
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 20,
-  },
-  controlLabelsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 12,
-    paddingHorizontal: 10,
-  },
-  controlLabel: {
-    color: '#888',
-    fontSize: 12,
-    textAlign: 'center',
-    flex: 1,
-  },
-  controlLabelDisabled: {
-    opacity: 0.5,
-  },
-  // New footer controls
+  // Fixed Footer Controls
   footerControls: {
     position: 'relative',
     flexDirection: 'column',
@@ -935,7 +878,7 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 15,
     marginBottom: 25,
-    gap: 10,
+    gap: spacing.md,
   },
   secondaryControlsContainer: {
     flexDirection: 'row',
@@ -943,7 +886,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '60%',
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
     paddingHorizontal: 1,
   },
   nextWorkoutContainer: {
@@ -953,224 +896,88 @@ const styles = StyleSheet.create({
   footerButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 8,
+    ...shadows.large,
   },
   footerButtonPrimary: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#007AFF',
     borderWidth: 4,
     borderColor: '#0056CC',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 12,
   },
   footerButtonTertiary: {
     width: 55,
     height: 55,
     borderRadius: 27.5,
-    backgroundColor: '#666666',
     borderWidth: 3,
     borderColor: '#888888',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
   },
   footerButtonSecondary: {
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: '#777777',
     borderWidth: 3,
     borderColor: '#999999',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 6,
-  },
-  footerButtonDisabled: {
-    backgroundColor: '#1A1A1A',
-    borderColor: '#2A2A2A',
-    opacity: 0.4,
-    shadowOpacity: 0,
-    elevation: 0,
   },
   nextWorkoutFooterButton: {
     width: 55,
     height: 55,
     borderRadius: 27.5,
-    backgroundColor: '#0000',
     borderWidth: 4,
     borderColor: '#248A3D',
     alignSelf: 'auto',
-    shadowColor: '#34C759',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 10,
-  },
-  planButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#222',
-    borderRadius: 20,
-    padding: 12,
-    marginTop: 40,
-  },
-  planButtonText: {
-    color: '#fff',
-    marginLeft: 8,
-    fontSize: 16,
-  },
-  nextWorkoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#00AAFF',
-    borderRadius: 20,
-    padding: 12,
-    marginTop: 16,
-  },
-  nextWorkoutButtonText: {
-    color: '#fff',
-    marginLeft: 8,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  homeButton: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#222',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  planContainer: {
-    flex: 1,
-    padding: 20,
-  },
-  planTitle: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  planExercise: {
-    backgroundColor: '#222',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  planExerciseActive: {
-    backgroundColor: '#1F7D53',
-  },
-  planExerciseName: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  planExerciseSets: {
-    color: '#888',
-    fontSize: 16,
-  },
-  closePlanButton: {
-    backgroundColor: '#333',
-    borderRadius: 20,
-    padding: 12,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  closePlanButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  loadingText: {
-    color: '#fff',
-    fontSize: 18,
-    textAlign: 'center',
-    marginTop: 100,
-  },
-  errorText: {
-    color: '#ff6b6b',
-    fontSize: 18,
-    textAlign: 'center',
-    marginTop: 100,
-    marginBottom: 30,
-  },
-  retryButton: {
-    backgroundColor: '#00AAFF',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  backButton: {
-    backgroundColor: '#333',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignSelf: 'center',
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 16,
   },
   topNavBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: '#1A1A1A',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
   topNavButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#222',
+    borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
   topNavCenter: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#222',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    borderRadius: borderRadius.xl,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     flex: 1,
-    marginHorizontal: 12,
+    marginHorizontal: spacing.md,
     justifyContent: 'center',
   },
   topNavText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.bold,
+    marginLeft: spacing.sm,
+  },
+  planContainer: {
+    flex: 1,
+    padding: spacing.xl,
+  },
+  planTitle: {
+    marginBottom: spacing.xl,
+    textAlign: 'center',
+  },
+  planExercise: {
+    borderRadius: borderRadius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  planExerciseName: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.bold,
+  },
+  planExerciseSets: {
+    fontSize: typography.fontSize.md,
   },
 });

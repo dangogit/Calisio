@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, Pressable, Text, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Calendar, Clock, Flame, BarChart2 } from 'lucide-react-native';
+import { ThemedText } from '@/components/ui/ThemedText';
+import { ThemedView } from '@/components/ui/ThemedView';
+import { spacing, borderRadius, typography, shadows } from '@/constants/designTokens';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 // Fake data for past workouts
@@ -61,9 +64,9 @@ export default function PastWorkoutsScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
-  const cardBgColor = '#1A1A1A';
-  const secondaryTextColor = '#888';
-  const inactiveFilterColor = '#333';
+  const cardBgColor = useThemeColor({}, 'cardBackground');
+  const textSecondaryColor = useThemeColor({}, 'textSecondary');
+  const buttonSecondaryColor = useThemeColor({}, 'buttonSecondary');
 
   // Simulate fetching past workouts
   useEffect(() => {
@@ -93,40 +96,40 @@ export default function PastWorkoutsScreen() {
   const renderWorkoutItem = ({ item, index }: { item: typeof PAST_WORKOUTS[0], index: number }) => (
     <AnimatedPressable
       entering={FadeInDown.delay(index * 100).duration(400)}
-      style={[styles.workoutCard, { backgroundColor: cardBgColor }]}
+      style={[styles.workoutCard, { backgroundColor: cardBgColor }, shadows.medium]}
     >
       <View style={styles.cardHeader}>
         <View style={styles.dateContainer}>
-          <Calendar size={16} color={tintColor} style={{ marginLeft: 4 }} />
-          <Text style={[styles.dateText, { color: secondaryTextColor }]}>
+          <Calendar size={16} color={tintColor} style={{ marginLeft: spacing.xs }} />
+          <ThemedText color="secondary" style={styles.dateText}>
             {formatDate(item.date)}
-          </Text>
+          </ThemedText>
         </View>
-        <Text style={[styles.workoutName, { color: textColor }]}>{item.name}</Text>
+        <ThemedText type="defaultSemiBold" style={styles.workoutName}>{item.name}</ThemedText>
       </View>
 
       <View style={styles.cardContent}>
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
             <Clock size={16} color={tintColor} style={styles.statIcon} />
-            <Text style={[styles.statValue, { color: textColor }]}>{item.duration}</Text>
-            <Text style={[styles.statLabel, { color: secondaryTextColor }]}>זמן</Text>
+            <ThemedText type="defaultSemiBold" style={styles.statValue}>{item.duration}</ThemedText>
+            <ThemedText color="secondary" style={styles.statLabel}>זמן</ThemedText>
           </View>
 
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
 
           <View style={styles.statItem}>
             <Flame size={16} color="#FF6B6B" style={styles.statIcon} />
-            <Text style={[styles.statValue, { color: textColor }]}>{item.calories}</Text>
-            <Text style={[styles.statLabel, { color: secondaryTextColor }]}>קלוריות</Text>
+            <ThemedText type="defaultSemiBold" style={styles.statValue}>{item.calories}</ThemedText>
+            <ThemedText color="secondary" style={styles.statLabel}>קלוריות</ThemedText>
           </View>
 
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
 
           <View style={styles.statItem}>
             <BarChart2 size={16} color="#5E97F6" style={styles.statIcon} />
-            <Text style={[styles.statValue, { color: textColor }]}>{item.exercises.length}</Text>
-            <Text style={[styles.statLabel, { color: secondaryTextColor }]}>תרגילים</Text>
+            <ThemedText type="defaultSemiBold" style={styles.statValue}>{item.exercises.length}</ThemedText>
+            <ThemedText color="secondary" style={styles.statLabel}>תרגילים</ThemedText>
           </View>
         </View>
       </View>
@@ -141,26 +144,24 @@ export default function PastWorkoutsScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={tintColor} />
-        <Animated.Text 
-          entering={FadeInDown.delay(300).duration(500)} 
-          style={[styles.loadingText, { color: textColor }]}
-        >
-          טוען אימונים קודמים...
-        </Animated.Text>
-      </View>
+        <Animated.View entering={FadeInDown.delay(300).duration(500)}>
+          <ThemedText type="subtitle" color="secondary" style={styles.centerText}>
+            טוען אימונים קודמים...
+          </ThemedText>
+        </Animated.View>
+      </ThemedView>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
-      <Animated.Text 
-        entering={FadeInDown.duration(500)} 
-        style={[styles.headerTitle, { color: textColor }]}
-      >
-        היסטוריית אימונים
-      </Animated.Text>
+    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+      <Animated.View entering={FadeInDown.duration(500)}>
+        <ThemedText type="title" style={styles.headerTitle}>
+          היסטוריית אימונים
+        </ThemedText>
+      </Animated.View>
 
       <Animated.View 
         entering={FadeInDown.delay(100).duration(500)}
@@ -172,20 +173,20 @@ export default function PastWorkoutsScreen() {
             style={[
               styles.filterButton, 
               { 
-                backgroundColor: selectedFilter === filter.id ? tintColor : inactiveFilterColor,
-                marginLeft: index < filterButtons.length - 1 ? 10 : 0,
+                backgroundColor: selectedFilter === filter.id ? tintColor : buttonSecondaryColor,
+                marginLeft: index < filterButtons.length - 1 ? spacing.md : 0,
               }
             ]}
             onPress={() => setSelectedFilter(filter.id)}
           >
-            <Text 
+            <ThemedText 
               style={[
                 styles.filterText, 
-                { color: selectedFilter === filter.id ? '#FFF' : secondaryTextColor }
+                { color: selectedFilter === filter.id ? '#FFF' : textSecondaryColor }
               ]}
             >
               {filter.label}
-            </Text>
+            </ThemedText>
           </Pressable>
         ))}
       </Animated.View>
@@ -201,93 +202,89 @@ export default function PastWorkoutsScreen() {
       <View style={styles.summaryContainer}>
         <Animated.View 
           entering={FadeInDown.delay(200).duration(500)}
-          style={[styles.summaryCard, { backgroundColor: cardBgColor }]}
+          style={[styles.summaryCard, { backgroundColor: cardBgColor }, shadows.medium]}
         >
-          <Text style={[styles.summaryTitle, { color: textColor }]}>סיכום חודשי</Text>
+          <ThemedText type="defaultSemiBold" style={styles.summaryTitle}>סיכום חודשי</ThemedText>
           <View style={styles.summaryStats}>
             <View style={styles.summaryStat}>
-              <Text style={[styles.summaryValue, { color: textColor }]}>14</Text>
-              <Text style={[styles.summaryLabel, { color: secondaryTextColor }]}>אימונים</Text>
+              <ThemedText type="heading3" style={styles.summaryValue}>14</ThemedText>
+              <ThemedText color="secondary" style={styles.summaryLabel}>אימונים</ThemedText>
             </View>
             
-            <View style={styles.summaryStatDivider} />
+            <View style={[styles.summaryStatDivider, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
             
             <View style={styles.summaryStat}>
-              <Text style={[styles.summaryValue, { color: textColor }]}>9:45</Text>
-              <Text style={[styles.summaryLabel, { color: secondaryTextColor }]}>שעות</Text>
+              <ThemedText type="heading3" style={styles.summaryValue}>9:45</ThemedText>
+              <ThemedText color="secondary" style={styles.summaryLabel}>שעות</ThemedText>
             </View>
             
-            <View style={styles.summaryStatDivider} />
+            <View style={[styles.summaryStatDivider, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
             
             <View style={styles.summaryStat}>
-              <Text style={[styles.summaryValue, { color: textColor }]}>4,820</Text>
-              <Text style={[styles.summaryLabel, { color: secondaryTextColor }]}>קלוריות</Text>
+              <ThemedText type="heading3" style={styles.summaryValue}>4,820</ThemedText>
+              <ThemedText color="secondary" style={styles.summaryLabel}>קלוריות</ThemedText>
             </View>
           </View>
         </Animated.View>
       </View>
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: spacing.lg,
+  },
+  centerText: {
+    textAlign: 'center',
+    marginTop: spacing.lg,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
     textAlign: 'center',
   },
   filterContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.xl,
   },
   filterText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
   },
   listContent: {
-    paddingBottom: 16,
+    paddingBottom: spacing.lg,
   },
   workoutCard: {
-    borderRadius: 16,
-    marginBottom: 12,
+    borderRadius: borderRadius.xl,
+    marginBottom: spacing.md,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   cardHeader: {
-    padding: 16,
+    padding: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   dateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   dateText: {
-    fontSize: 14,
+    fontSize: typography.fontSize.sm,
   },
   workoutName: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: typography.fontSize.md,
     textAlign: 'right',
   },
   cardContent: {
-    padding: 16,
+    padding: spacing.lg,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -299,43 +296,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statIcon: {
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   statValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: typography.fontSize.md,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: typography.fontSize.xs,
   },
   statDivider: {
     width: 1,
     height: 30,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  loadingText: {
-    fontSize: 16,
-    marginTop: 16,
-    textAlign: 'center',
   },
   summaryContainer: {
-    marginTop: 8,
-    marginBottom: 16,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
   },
   summaryCard: {
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
   },
   summaryTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: typography.fontSize.md,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   summaryStats: {
     flexDirection: 'row',
@@ -347,15 +331,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: typography.fontSize.lg,
   },
   summaryLabel: {
-    fontSize: 12,
+    fontSize: typography.fontSize.xs,
   },
   summaryStatDivider: {
     width: 1,
     height: 40,
-    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-}); 
+});

@@ -599,7 +599,7 @@ export default function WorkoutTimer() {
                   ? currentExercise.supersetExercise.name 
                   : currentExercise.name}
                 {currentExercise.isSuperset && !isRest && (
-                  <ThemedText color="secondary\" style={{ fontSize: 18 }}>
+                  <ThemedText color="secondary" style={{ fontSize: 18 }}>
                     {` (${supersetPhase === 'first' ? '1' : '2'}/2)`}
                   </ThemedText>
                 )}
@@ -646,7 +646,7 @@ export default function WorkoutTimer() {
             </View>
 
             {/* Exercise visualization and timer */}
-            <View style={[styles.timerContainer, { marginBottom: 140 }]}>
+            <View style={styles.timerContainer}>
               <View style={styles.exerciseImageContainer}>
                 <CircularProgressDisplay 
                   progress={progress}
@@ -670,86 +670,21 @@ export default function WorkoutTimer() {
                   {isRest ? 'מנוחה' : 'עבודה'}
                 </ThemedText>
               </View>
+
+              {/* Simple Play/Pause Button */}
+              <Pressable 
+                style={[styles.playPauseButton, { backgroundColor: workColor }]} 
+                onPress={handlePlayPause}
+              >
+                {isRunning ? (
+                  <Pause color="#FFFFFF" size={24} />
+                ) : (
+                  <Play color="#FFFFFF" size={24} />
+                )}
+              </Pressable>
             </View>
           </Reanimated.View>
         </GestureDetector>
-      )}
-      
-      {/* Fixed Footer Controls - Positioned absolutely at bottom */}
-      {!showPlan && (
-        <View style={[styles.footerControls, { paddingBottom: insets.bottom + spacing.xl }]}>
-          {/* Secondary controls row - Exercise navigation */}
-          <View style={styles.secondaryControlsContainer}>
-            {/* Previous Set/Phase - Left */}
-            <Pressable 
-              style={[styles.footerButton, styles.footerButtonTertiary, { backgroundColor: textSecondaryColor }]} 
-              onPress={handlePreviousSet}
-            >
-              <ChevronLeft color="#FFFFFF" size={14} />
-            </Pressable>
-            
-            {/* Next Set/Phase - Right */}
-            <Pressable 
-              style={[styles.footerButton, styles.footerButtonTertiary, { backgroundColor: textSecondaryColor }]} 
-              onPress={handleNextSet}
-            >
-              <ChevronRight color="#FFFFFF" size={14} />
-            </Pressable>
-          </View>
-
-          {/* Main control buttons row - Primary media controls */}
-          <View style={styles.mainControlsContainer}>
-            {/* Previous Exercise - Left */}
-            <Pressable 
-              style={[
-                styles.footerButton, 
-                styles.footerButtonSecondary,
-                { backgroundColor: currentExerciseIndex === 0 ? '#1A1A1A' : '#777777' }
-              ]} 
-              onPress={handlePreviousExercise}
-              disabled={currentExerciseIndex === 0}
-            >
-              <ChevronsLeft color={currentExerciseIndex === 0 ? '#777' : '#FFFFFF'} size={16} />
-            </Pressable>
-            
-            {/* Play/Pause - Center (Primary button) */}
-            <Pressable 
-              style={[styles.footerButton, styles.footerButtonPrimary, { backgroundColor: workColor }]} 
-              onPress={handlePlayPause}
-            >
-              {isRunning ? (
-                <Pause color="#FFFFFF\" size={20} />
-              ) : (
-                <Play color="#FFFFFF" size={20} />
-              )}
-            </Pressable>
-            
-            {/* Next Exercise - Right */}
-            <Pressable 
-              style={[
-                styles.footerButton, 
-                styles.footerButtonSecondary,
-                { backgroundColor: currentExerciseIndex >= (workout?.exercises.length || 0) - 1 ? '#1A1A1A' : '#777777' }
-              ]} 
-              onPress={handleNextExercise}
-              disabled={currentExerciseIndex >= (workout?.exercises.length || 0) - 1}
-            >
-              <ChevronsRight color={currentExerciseIndex >= (workout?.exercises.length || 0) - 1 ? '#777' : '#FFFFFF'} size={16} />
-            </Pressable>
-          </View>
-          
-          {/* Next workout button - Separate row */}
-          {getNextWorkout() && (
-            <View style={styles.nextWorkoutContainer}>
-              <Pressable 
-                style={[styles.footerButton, styles.nextWorkoutFooterButton, { backgroundColor: '#1F7D53' }]}
-                onPress={handleNextWorkout}
-              >
-                <SkipForward color="#FFFFFF" size={16} />
-              </Pressable>
-            </View>
-          )}
-        </View>
       )}
     </ThemedView>
   );
@@ -829,10 +764,12 @@ const styles = StyleSheet.create({
   timerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    flex: 1,
   },
   timerInfoContainer: {
     alignItems: 'center',
     marginTop: spacing.xl,
+    marginBottom: spacing.xl,
   },
   timerValue: {
     fontSize: typography.fontSize.huge,
@@ -859,73 +796,13 @@ const styles = StyleSheet.create({
   exerciseIcon: {
     fontSize: 40,
   },
-  // Fixed Footer Controls
-  footerControls: {
-    position: 'relative',
-    flexDirection: 'column',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  mainControlsContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    paddingHorizontal: 15,
-    marginBottom: 25,
-    gap: spacing.md,
-  },
-  secondaryControlsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '60%',
-    alignSelf: 'center',
-    marginBottom: spacing.xl,
-    paddingHorizontal: 1,
-  },
-  nextWorkoutContainer: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  footerButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.large,
-  },
-  footerButtonPrimary: {
+  playPauseButton: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    borderWidth: 4,
-    borderColor: '#0056CC',
-  },
-  footerButtonTertiary: {
-    width: 55,
-    height: 55,
-    borderRadius: 27.5,
-    borderWidth: 3,
-    borderColor: '#888888',
-  },
-  footerButtonSecondary: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    borderWidth: 3,
-    borderColor: '#999999',
-  },
-  nextWorkoutFooterButton: {
-    width: 55,
-    height: 55,
-    borderRadius: 27.5,
-    borderWidth: 4,
-    borderColor: '#248A3D',
-    alignSelf: 'auto',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.large,
   },
   topNavBar: {
     flexDirection: 'row',
